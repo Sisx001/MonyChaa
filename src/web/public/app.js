@@ -147,6 +147,7 @@ let currentSettings = {};
 async function loadPrompt() {
   currentSettings = await api('/settings');
   $('#prompt-editor').value = currentSettings.system_prompt || '';
+  for (const el of $$('[data-ctx-setting]')) el.value = currentSettings[el.dataset.ctxSetting] ?? '';
   const presets = await api('/prompts/presets');
   $('#preset-row').innerHTML = Object.keys(presets).map(name =>
     `<button class="btn btn-sm ${currentSettings.active_preset === name ? 'btn-primary' : ''}" data-preset="${esc(name)}">${esc(name)}</button>`
@@ -218,6 +219,12 @@ $('#save-version').addEventListener('click', async () => {
   await api('/prompts/versions', { method: 'POST', body: { name, content: $('#prompt-editor').value } });
   toast('Version saved');
   loadVersions();
+});
+$('#save-context').addEventListener('click', async () => {
+  const body = {};
+  for (const el of $$('[data-ctx-setting]')) body[el.dataset.ctxSetting] = el.value;
+  await api('/settings', { method: 'PUT', body });
+  toast('Context blocks saved');
 });
 $('#preview-prompt').addEventListener('click', async () => {
   const r = await api('/prompts/preview');
@@ -424,6 +431,7 @@ function openContact(c) {
   $('#c-priority').value = String(c?.priority ?? 0);
   $('#c-delay_multiplier').value = c?.delay_multiplier ?? 1;
   $('#c-max_length').value = c?.max_length || '';
+  $('#c-voice_replies').value = String(c?.voice_replies ?? 0);
   $('#c-rules').value = joinLines(c?.rules);
   $('#c-blocked_topics').value = joinLines(c?.blocked_topics);
   $('#c-notes').value = c?.notes || '';
@@ -445,6 +453,7 @@ $('#contact-save').addEventListener('click', async () => {
     relationship: $('#c-relationship').value, tone: $('#c-tone').value, gender: $('#c-gender').value,
     auto_reply: Number($('#c-auto_reply').value), priority: Number($('#c-priority').value),
     delay_multiplier: Number($('#c-delay_multiplier').value) || 1,
+    voice_replies: Number($('#c-voice_replies').value),
     max_length: $('#c-max_length').value ? Number($('#c-max_length').value) : null,
     rules: parseLines($('#c-rules').value), blocked_topics: parseLines($('#c-blocked_topics').value),
     notes: $('#c-notes').value, custom_prompt: $('#c-custom_prompt').value || null,
@@ -517,7 +526,11 @@ async function loadTools() {
     let args = {};
     try { args = JSON.parse($('#tool-args-' + name).value || '{}'); } catch { return out.textContent = 'Invalid JSON args'; }
     const r = await api(`/tools/${name}/test`, { method: 'POST', body: args });
-    out.textContent = r.ok ? r.output : '✗ ' + r.error;
+    if (r.ok && r.photoUrl) {
+      out.innerHTML = `${esc(r.output)}<br><img src="${esc(r.photoUrl)}" style="max-width:220px;border-radius:8px;margin-top:6px">`;
+    } else {
+      out.textContent = r.ok ? r.output : '✗ ' + r.error;
+    }
   }));
 
   $('#sched-table tbody').innerHTML = sched.length ? sched.map(s => `
@@ -533,6 +546,16 @@ async function loadTools() {
   // Automation fields
   for (const el of $$('#tab-tools [data-setting]')) el.value = settings[el.dataset.setting] ?? '';
 }
+$('#send-now').addEventListener('click', async () => {
+  try {
+    await api('/send', {
+      method: 'POST',
+      body: { chat_id: Number($('#send-chat').value), type: $('#send-type').value, content: $('#send-content').value },
+    });
+    toast('Sent');
+    $('#send-content').value = '';
+  } catch (err) { toast(err.message, false); }
+});
 $('#sched-add').addEventListener('click', async () => {
   try {
     await api('/scheduled', { method: 'POST', body: { chat_id: Number($('#sched-chat').value), content: $('#sched-content').value, send_at: $('#sched-at').value } });
@@ -604,8 +627,31 @@ $('#log-search').addEventListener('input', debounce(loadLogs, 400));
 
 // ---------- SETTINGS ----------
 async function loadSettings() {
-  const settings = await api('/settings');
+  const [settings, keys] = await Promise.all([api('/settings'), api('/keys')]);
   for (const el of $$('#tab-settings [data-setting]')) el.value = settings[el.dataset.setting] ?? '';
+
+  $('#keys-table tbody').innerHTML = keys.map(k => `
+    <tr>
+      <td><code>${esc(k.name)}</code></td>
+      <td><span class="badge badge-${k.source === 'panel' ? 'blue' : k.source === 'env' ? 'green' : 'gray'}">${esc(k.source)}</span></td>
+      <td>${esc(k.masked || '—')}</td>
+      <td class="btn-row" style="margin:0">
+        <button class="btn btn-sm" data-set-key="${esc(k.name)}">Set</button>
+        ${k.source === 'panel' ? `<button class="btn btn-sm btn-danger" data-del-key="${esc(k.name)}">✕</button>` : ''}
+      </td>
+    </tr>`).join('');
+  $$('[data-set-key]').forEach(b => b.addEventListener('click', async () => {
+    const value = prompt(`Enter value for ${b.dataset.setKey}:`);
+    if (value === null) return;
+    await api('/keys/' + b.dataset.setKey, { method: 'PUT', body: { value } });
+    toast(value ? 'Key saved — active immediately' : 'Key cleared');
+    loadSettings();
+  }));
+  $$('[data-del-key]').forEach(b => b.addEventListener('click', async () => {
+    await api('/keys/' + b.dataset.delKey, { method: 'DELETE' });
+    toast('Key removed (env value applies if set)');
+    loadSettings();
+  }));
 }
 $('#save-settings').addEventListener('click', async () => {
   const body = {};

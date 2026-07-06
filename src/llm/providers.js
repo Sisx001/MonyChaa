@@ -155,13 +155,13 @@ const PROVIDERS = {
 function apiKey(providerId) {
   const p = PROVIDERS[providerId];
   if (!p || !p.keyEnv) return '';
-  return env[p.keyEnv] || '';
+  return require('../config').key(p.keyEnv);
 }
 
 function isConfigured(providerId) {
   const p = PROVIDERS[providerId];
   if (!p) return false;
-  if (p.keyEnv) return Boolean(env[p.keyEnv]);
+  if (p.keyEnv) return Boolean(apiKey(providerId));
   if (p.urlEnv) return Boolean(env[p.urlEnv]); // local providers need explicit URL
   return false;
 }

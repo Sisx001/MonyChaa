@@ -133,7 +133,8 @@ router.post('/providers/test', wrap(async (req, res) => {
 
 // ---------- Contacts ----------
 const CONTACT_FIELDS = ['username', 'name', 'relationship', 'tone', 'gender', 'rules', 'auto_reply',
-  'delay_multiplier', 'max_length', 'blocked_topics', 'priority', 'learned_tone', 'custom_prompt', 'notes'];
+  'delay_multiplier', 'max_length', 'blocked_topics', 'priority', 'learned_tone', 'custom_prompt', 'notes',
+  'voice_replies'];
 
 router.get('/contacts', wrap((req, res) => {
   const q = req.query.q;
@@ -254,7 +255,11 @@ router.post('/tools/:name/test', wrap(async (req, res) => {
   if (!tool) return res.status(404).json({ error: 'unknown tool' });
   try {
     const output = await tool.run(req.body || {});
-    res.json({ ok: true, output: String(output) });
+    if (output && typeof output === 'object') {
+      res.json({ ok: true, output: output.text || '', photoUrl: output.photoUrl || null });
+    } else {
+      res.json({ ok: true, output: String(output) });
+    }
   } catch (err) {
     res.json({ ok: false, error: err.message });
   }
@@ -302,6 +307,81 @@ router.get('/logs/events', wrap((req, res) => {
 
 router.get('/logs/tokens', wrap((req, res) => {
   res.json(db.prepare('SELECT * FROM token_usage ORDER BY id DESC LIMIT 100').all());
+}));
+
+// ---------- API key management ----------
+function maskKey(v) {
+  if (!v) return '';
+  return v.length <= 8 ? '••••' : v.slice(0, 4) + '••••' + v.slice(-4);
+}
+
+router.get('/keys', wrap((req, res) => {
+  res.json(config.KEY_NAMES.map(name => {
+    const dbRow = db.prepare('SELECT value FROM settings WHERE key = ?').get('apikey_' + name);
+    const envVal = config.env[name] || '';
+    return {
+      name,
+      source: dbRow && dbRow.value ? 'panel' : envVal ? 'env' : 'none',
+      masked: maskKey((dbRow && dbRow.value) || envVal),
+    };
+  }));
+}));
+
+router.put('/keys/:name', wrap((req, res) => {
+  config.setKey(req.params.name, req.body.value || '');
+  res.json({ ok: true });
+}));
+
+router.delete('/keys/:name', wrap((req, res) => {
+  config.setKey(req.params.name, '');
+  res.json({ ok: true });
+}));
+
+// ---------- Manual send (message / voice / photo / sticker / file / poll) ----------
+router.post('/send', wrap(async (req, res) => {
+  const { getBot, getBusinessConnectionId, logMsg } = require('../bot/handlers');
+  const bot = getBot();
+  if (!bot) return res.status(400).json({ error: 'Bot is not running (TELEGRAM_BOT_TOKEN not set)' });
+  const { chat_id, type = 'message', content } = req.body;
+  const chatId = Number(chat_id);
+  if (!chatId || !content) return res.status(400).json({ error: 'chat_id and content required' });
+  const isOwner = chatId === config.env.OWNER_USER_ID;
+  const opts = isOwner ? {} : { business_connection_id: getBusinessConnectionId() };
+  if (!isOwner && !opts.business_connection_id) {
+    return res.status(400).json({ error: 'No business connection yet — connect the bot in Telegram Business settings' });
+  }
+
+  if (type === 'message') {
+    await bot.api.sendMessage(chatId, content, opts);
+    logMsg(chatId, 'outgoing', content, { model: 'manual-panel' });
+  } else if (type === 'voice') {
+    const tts = require('../tools/tts');
+    if (!tts.available()) return res.status(400).json({ error: 'No TTS provider configured' });
+    const { InputFile } = require('grammy');
+    const { buffer } = await tts.speak(content);
+    await bot.api.sendVoice(chatId, new InputFile(buffer, 'voice.ogg'), opts);
+    logMsg(chatId, 'outgoing', `[voice] ${content}`, { model: 'manual-panel' });
+  } else if (type === 'photo') {
+    await bot.api.sendPhoto(chatId, content, opts); // content = image URL
+    logMsg(chatId, 'outgoing', `[photo] ${content}`, { model: 'manual-panel' });
+  } else if (type === 'sticker') {
+    await bot.api.sendSticker(chatId, content, opts); // content = sticker file_id
+    logMsg(chatId, 'outgoing', '[sticker]', { model: 'manual-panel' });
+  } else if (type === 'document') {
+    await bot.api.sendDocument(chatId, content, opts); // content = file URL
+    logMsg(chatId, 'outgoing', `[file] ${content}`, { model: 'manual-panel' });
+  } else if (type === 'poll') {
+    let poll;
+    try { poll = JSON.parse(content); } catch { return res.status(400).json({ error: 'Poll content must be JSON: {"question":"...","options":["a","b"]}' }); }
+    if (!poll.question || !Array.isArray(poll.options) || poll.options.length < 2) {
+      return res.status(400).json({ error: 'Poll needs a question and at least 2 options' });
+    }
+    await bot.api.sendPoll(chatId, poll.question, poll.options.map(o => ({ text: String(o) })), opts);
+    logMsg(chatId, 'outgoing', `[poll] ${poll.question}`, { model: 'manual-panel' });
+  } else {
+    return res.status(400).json({ error: `Unknown send type: ${type}` });
+  }
+  res.json({ ok: true });
 }));
 
 // ---------- Backup / restore ----------

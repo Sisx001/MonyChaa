@@ -81,6 +81,22 @@
           <button class="btn" id="preview-prompt">👁 Preview resolved</button>
         </div>
       </div>
+      <div class="card">
+        <h3>Custom context blocks</h3>
+        <p class="hint">Live data injected into every prompt (cached 10 min).</p>
+        <div class="form-grid">
+          <label>Weather for city (empty = off)
+            <input data-ctx-setting="inject_weather_city" placeholder="Singapore">
+          </label>
+          <label>News headlines (needs NEWSAPI_KEY)
+            <select data-ctx-setting="inject_news"><option value="off">Off</option><option value="on">On</option></select>
+          </label>
+          <label>Calendar events (needs Google OAuth)
+            <select data-ctx-setting="inject_calendar"><option value="off">Off</option><option value="on">On</option></select>
+          </label>
+        </div>
+        <div class="btn-row"><button class="btn btn-primary" id="save-context">💾 Save context blocks</button></div>
+      </div>
       <div class="grid-2">
         <div class="card">
           <h3>Versions</h3>
@@ -201,6 +217,23 @@
         <div id="tools-list"></div>
       </div>
       <div class="card">
+        <h3>Send now</h3>
+        <p class="hint">Send a message, voice note (TTS), photo, sticker, file or poll to any chat, as you.</p>
+        <div class="input-row">
+          <input id="send-chat" placeholder="chat_id" style="max-width:140px">
+          <select id="send-type" style="max-width:150px">
+            <option value="message">Message</option>
+            <option value="voice">Voice (TTS)</option>
+            <option value="photo">Photo (URL)</option>
+            <option value="sticker">Sticker (file_id)</option>
+            <option value="document">File (URL)</option>
+            <option value="poll">Poll (JSON)</option>
+          </select>
+          <input id="send-content" placeholder="Content…" style="flex:2">
+          <button class="btn btn-primary" id="send-now">Send</button>
+        </div>
+      </div>
+      <div class="card">
         <h3>Scheduled messages</h3>
         <div class="input-row">
           <input id="sched-chat" placeholder="chat_id" style="max-width:140px">
@@ -310,6 +343,21 @@
         </div>
       </div>
       <div class="card">
+        <h3>API keys</h3>
+        <p class="hint">Keys set here are stored in the local database and take effect immediately — they override <code>.env</code>. Values are never shown in full.</p>
+        <table class="table" id="keys-table">
+          <thead><tr><th>Key</th><th>Source</th><th>Value</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3>Alerts</h3>
+        <div class="form-grid">
+          <label>Rate limit alerts <select data-setting="rate_limit_alerts"><option value="on">On</option><option value="off">Off</option></select></label>
+          <label>Auto-archive inactive chats after (days, 0 = off) <input type="number" data-setting="auto_archive_days"></label>
+        </div>
+      </div>
+      <div class="card">
         <h3>Data</h3>
         <div class="form-grid">
           <label>Retention (days, 0 = keep forever) <input type="number" data-setting="data_retention_days"></label>
@@ -344,6 +392,7 @@
       <label>Priority (VIP) <select id="c-priority"><option value="0">Normal</option><option value="1">VIP</option></select></label>
       <label>Delay multiplier <input id="c-delay_multiplier" type="number" step="0.1" value="1"></label>
       <label>Max message length <input id="c-max_length" type="number" placeholder="(default)"></label>
+      <label>Voice replies (TTS) <select id="c-voice_replies"><option value="0">Off</option><option value="1">On</option></select></label>
     </div>
     <label class="full">Rules (one per line)
       <textarea id="c-rules" rows="3" placeholder="never quote prices&#10;use emojis"></textarea>

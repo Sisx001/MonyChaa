@@ -36,8 +36,20 @@ async function main() {
   };
   process.on('SIGINT', () => shutdown('SIGINT'));
   process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('uncaughtException', (err) => logError('uncaughtException', err));
-  process.on('unhandledRejection', (err) => logError('unhandledRejection', err instanceof Error ? err : new Error(String(err))));
+  // Crash alerts to the owner, throttled to once per 10 minutes.
+  let lastCrashAlert = 0;
+  const crashAlert = (err) => {
+    if (Date.now() - lastCrashAlert < 10 * 60000) return;
+    lastCrashAlert = Date.now();
+    const { notifyOwner } = require('./bot/handlers');
+    notifyOwner(`🔥 Bot error: ${err.message}`.slice(0, 500)).catch(() => {});
+  };
+  process.on('uncaughtException', (err) => { logError('uncaughtException', err); crashAlert(err); });
+  process.on('unhandledRejection', (err) => {
+    const e = err instanceof Error ? err : new Error(String(err));
+    logError('unhandledRejection', e);
+    crashAlert(e);
+  });
 }
 
 main().catch(err => {

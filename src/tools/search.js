@@ -1,6 +1,7 @@
 'use strict';
 // Web search with multiple backends, tried in order of what's configured.
-const { env } = require('../config');
+const config = require('../config');
+const { env } = config;
 const logger = require('../logger');
 
 async function getJson(url, options = {}) {
@@ -10,7 +11,7 @@ async function getJson(url, options = {}) {
 }
 
 async function searxng(query) {
-  const base = env.SEARXNG_URL.replace(/\/$/, '');
+  const base = config.key('SEARXNG_URL').replace(/\/$/, '');
   const json = await getJson(`${base}/search?q=${encodeURIComponent(query)}&format=json`, {
     headers: { 'User-Agent': 'secretary-pro/1.0' },
   });
@@ -29,7 +30,7 @@ async function duckduckgo(query) {
 
 async function brave(query) {
   const json = await getJson(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}`, {
-    headers: { 'X-Subscription-Token': env.BRAVE_SEARCH_KEY, 'Accept': 'application/json' },
+    headers: { 'X-Subscription-Token': config.key('BRAVE_SEARCH_KEY'), 'Accept': 'application/json' },
   });
   return (json.web?.results || []).slice(0, 5).map(r => ({ title: r.title, url: r.url, snippet: r.description || '' }));
 }
@@ -38,7 +39,7 @@ async function tavily(query) {
   const res = await fetch('https://api.tavily.com/search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ api_key: env.TAVILY_API_KEY, query, max_results: 5 }),
+    body: JSON.stringify({ api_key: config.key('TAVILY_API_KEY'), query, max_results: 5 }),
     signal: AbortSignal.timeout(15000),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -47,15 +48,35 @@ async function tavily(query) {
 }
 
 async function serpapi(query) {
-  const json = await getJson(`https://serpapi.com/search.json?q=${encodeURIComponent(query)}&api_key=${env.SERPAPI_KEY}`);
+  const json = await getJson(`https://serpapi.com/search.json?q=${encodeURIComponent(query)}&api_key=${config.key('SERPAPI_KEY')}`);
   return (json.organic_results || []).slice(0, 5).map(r => ({ title: r.title, url: r.link, snippet: r.snippet || '' }));
 }
 
+// Perplexity's sonar models do live web search and return citations.
+async function perplexity(query) {
+  const res = await fetch('https://api.perplexity.ai/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.key('PERPLEXITY_API_KEY')}` },
+    body: JSON.stringify({
+      model: 'sonar',
+      messages: [{ role: 'user', content: `Answer concisely with sources: ${query}` }],
+      max_tokens: 400,
+    }),
+    signal: AbortSignal.timeout(20000),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+  const answer = json.choices?.[0]?.message?.content || '';
+  if (!answer) return [];
+  return [{ title: 'Perplexity answer', url: (json.citations || [])[0] || '', snippet: answer }];
+}
+
 const BACKENDS = [
-  { name: 'tavily', fn: tavily, enabled: () => Boolean(env.TAVILY_API_KEY) },
-  { name: 'brave', fn: brave, enabled: () => Boolean(env.BRAVE_SEARCH_KEY) },
-  { name: 'serpapi', fn: serpapi, enabled: () => Boolean(env.SERPAPI_KEY) },
-  { name: 'searxng', fn: searxng, enabled: () => Boolean(env.SEARXNG_URL) },
+  { name: 'tavily', fn: tavily, enabled: () => Boolean(config.key('TAVILY_API_KEY')) },
+  { name: 'brave', fn: brave, enabled: () => Boolean(config.key('BRAVE_SEARCH_KEY')) },
+  { name: 'serpapi', fn: serpapi, enabled: () => Boolean(config.key('SERPAPI_KEY')) },
+  { name: 'perplexity', fn: perplexity, enabled: () => Boolean(config.key('PERPLEXITY_API_KEY')) },
+  { name: 'searxng', fn: searxng, enabled: () => Boolean(config.key('SEARXNG_URL')) },
   { name: 'duckduckgo', fn: duckduckgo, enabled: () => true },
 ];
 

@@ -100,6 +100,26 @@ function isAway() {
   return start <= end ? (now >= start && now <= end) : (now >= start || now <= end);
 }
 
+// Custom context blocks (weather / news / calendar) injected into the prompt,
+// refreshed at most every 10 minutes.
+let contextCache = { at: 0, text: '' };
+async function injectedContext() {
+  const wantWeather = config.getSetting('inject_weather_city');
+  const wantNews = config.getSetting('inject_news') === 'on';
+  const wantCalendar = config.getSetting('inject_calendar') === 'on';
+  if (!wantWeather && !wantNews && !wantCalendar) return '';
+  if (Date.now() - contextCache.at < 10 * 60000) return contextCache.text;
+
+  const { TOOLS } = require('../tools');
+  const parts = await Promise.all([
+    wantWeather ? TOOLS.weather.run({ location: wantWeather }).then(t => `Weather: ${t}`).catch(() => '') : '',
+    wantNews && TOOLS.news.enabled() ? TOOLS.news.run({}).then(t => `Headlines:\n${t}`).catch(() => '') : '',
+    wantCalendar && TOOLS.calendar.enabled() ? TOOLS.calendar.run({ days: 2 }).then(t => `My schedule:\n${t}`).catch(() => '') : '',
+  ]);
+  contextCache = { at: Date.now(), text: parts.filter(Boolean).join('\n\n') };
+  return contextCache.text;
+}
+
 /** Momentum: fraction of the last 6 messages that happened within 5 minutes. */
 function conversationMomentum(chatId) {
   const rows = db.prepare(
@@ -139,16 +159,18 @@ async function generateReply(chatId, incomingText, { attachments = [] } = {}) {
 
   conversations.addMessage(chatId, 'user', incomingText);
 
-  // Gather context: semantic memories + tool output (both best-effort).
-  const [memories, toolOutput] = await Promise.all([
+  // Gather context: semantic memories + tool output + injected blocks (all best-effort).
+  const [memories, toolResult, injected] = await Promise.all([
     vector.recall(chatId, incomingText).catch(() => []),
     maybeRunTool(incomingText).catch(() => null),
+    injectedContext().catch(() => ''),
   ]);
   let extraContext = '';
+  if (injected) extraContext += injected;
   if (memories.length) {
-    extraContext += 'Relevant memories:\n' + memories.map(m => `- ${m.content}`).join('\n');
+    extraContext += (extraContext ? '\n\n' : '') + 'Relevant memories:\n' + memories.map(m => `- ${m.content}`).join('\n');
   }
-  if (toolOutput) extraContext += (extraContext ? '\n\n' : '') + toolOutput;
+  if (toolResult) extraContext += (extraContext ? '\n\n' : '') + toolResult.context;
 
   const history = conversations.getHistory(chatId);
   const messages = [{ role: 'system', content: buildSystemPrompt(contact, extraContext) }];
@@ -186,7 +208,14 @@ async function generateReply(chatId, incomingText, { attachments = [] } = {}) {
   });
 
   logger.info(`Reply for ${chatId} via ${result.provider}/${result.model} in ${Date.now() - start}ms`);
-  return { bursts: splitBursts(replyText), plan, result, contact };
+  return {
+    bursts: splitBursts(replyText),
+    plan,
+    result,
+    contact,
+    photoUrl: toolResult?.photoUrl || null,
+    voiceReply: Boolean(contact?.voice_replies),
+  };
 }
 
 module.exports = { generateReply, getContact, upsertContact, buildSystemPrompt, isAway, sleep };

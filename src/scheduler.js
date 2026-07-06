@@ -62,6 +62,36 @@ function start() {
     await notifyOwner(dailySummaryText());
   });
 
+  // Nightly: auto-archive conversations inactive for N days — compress the
+  // history into a long-term memory, then clear the raw messages.
+  cron.schedule('0 4 * * *', async () => {
+    const days = Number(config.getSetting('auto_archive_days')) || 0;
+    if (days <= 0) return;
+    const stale = db.prepare(`
+      SELECT chat_id, COUNT(*) c, MAX(created_at) latest FROM conversations
+      GROUP BY chat_id HAVING latest < datetime('now', ?) AND c > 5
+    `).all(`-${days} days`);
+    for (const row of stale) {
+      try {
+        const { chat } = require('./llm/fallback');
+        const vector = require('./memory/vector');
+        const msgs = db.prepare('SELECT role, content FROM conversations WHERE chat_id = ? ORDER BY id').all(row.chat_id);
+        const transcript = msgs.map(m => `${m.role}: ${m.content}`).join('\n').slice(0, 24000);
+        const result = await chat([
+          { role: 'system', content: 'Summarize this conversation into a compact brief preserving all important facts, names, dates and commitments. Output only the summary.' },
+          { role: 'user', content: transcript },
+        ], { maxTokens: 400, temperature: 0.2 });
+        await vector.remember(row.chat_id, `[Archived conversation summary] ${result.text}`, 'important');
+        db.prepare('DELETE FROM conversations WHERE chat_id = ?').run(row.chat_id);
+        db.prepare('INSERT INTO events_log (type, detail) VALUES (?, ?)')
+          .run('auto_archive', `Archived ${row.c} messages from chat ${row.chat_id}`);
+        logger.info(`Auto-archived chat ${row.chat_id} (${row.c} messages)`);
+      } catch (err) {
+        logger.warn(`Auto-archive failed for chat ${row.chat_id}: ${err.message}`);
+      }
+    }
+  });
+
   // Nightly: retention cleanup + reset cost alert flag.
   cron.schedule('0 3 * * *', () => {
     alertedCostToday = false;

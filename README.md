@@ -10,9 +10,11 @@ A complete **Telegram AI Secretary** — connects to your personal Telegram acco
 - **Voice note transcription** (Gemini multimodal) and **image understanding** (vision model routing)
 - **Memory** — per-chat history, semantic vector recall, auto-extracted facts, global FAQ knowledge base, auto-summarization
 - **Per-contact customization** — tone, rules, blocked topics, VIP priority, custom prompts, relationship learning from real chat transcripts
-- **Tools** — web search (Tavily/Brave/SerpAPI/SearXNG/DuckDuckGo), weather, crypto prices, currency conversion, translation, Google Calendar, news
-- **Automation** — away mode (manual + scheduled), welcome messages, keyword alerts, scheduled messages, daily summaries, cost alerts
-- **Admin panel** — dashboard with live charts, prompt editor with versioning/diff/rollback/presets, full logs, backup/restore
+- **Tools** — web search (Tavily/Brave/SerpAPI/Perplexity/SearXNG/DuckDuckGo), webpage reader, weather, crypto prices, currency conversion, translation, image generation (DALL-E or free Pollinations), QR codes, URL shortener
+- **Integrations** — Google Calendar, Gmail (read + panel-initiated send), GitHub notifications, Notion search, Spotify now-playing, YouTube search, Twitter/X search, news
+- **Voice both ways** — transcribes incoming voice notes (Gemini or Whisper); per-contact TTS voice replies (ElevenLabs or OpenAI)
+- **Automation** — away mode (manual + scheduled), welcome messages, keyword alerts, scheduled messages, daily summaries, cost/rate-limit/crash alerts, auto-archive of inactive chats
+- **Admin panel** — dashboard with live charts, prompt editor with versioning/diff/rollback/presets, custom context blocks (weather/news/calendar injected into every prompt), "send now" composer (message/voice/photo/sticker/file/poll), live API key management, full logs, backup/restore
 
 ## Quickstart
 

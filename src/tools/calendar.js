@@ -1,6 +1,6 @@
 'use strict';
 // Google Calendar (read) via OAuth refresh token. Optional integration.
-const { env } = require('../config');
+const config = require('../config');
 
 let cachedToken = null;
 let tokenExpiry = 0;
@@ -11,9 +11,9 @@ async function accessToken() {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      client_id: env.GOOGLE_CLIENT_ID,
-      client_secret: env.GOOGLE_CLIENT_SECRET,
-      refresh_token: env.GOOGLE_REFRESH_TOKEN,
+      client_id: config.key('GOOGLE_CLIENT_ID'),
+      client_secret: config.key('GOOGLE_CLIENT_SECRET'),
+      refresh_token: config.key('GOOGLE_REFRESH_TOKEN'),
       grant_type: 'refresh_token',
     }),
     signal: AbortSignal.timeout(10000),
@@ -26,7 +26,7 @@ async function accessToken() {
 }
 
 function available() {
-  return Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN);
+  return Boolean(config.key('GOOGLE_CLIENT_ID') && config.key('GOOGLE_CLIENT_SECRET') && config.key('GOOGLE_REFRESH_TOKEN'));
 }
 
 /** Upcoming events for the next `days` days, formatted for prompt injection. */

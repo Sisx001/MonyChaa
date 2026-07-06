@@ -218,19 +218,37 @@ async function embed(text) {
   }
 }
 
-/** Transcribe a voice note with Gemini multimodal. */
+/** Transcribe a voice note: Gemini multimodal, falling back to OpenAI Whisper. */
 async function transcribeAudio(dataBase64, mimeType) {
-  if (!isConfigured('gemini')) throw new Error('GEMINI_API_KEY required for voice transcription');
-  const result = await chatOnce('gemini', 'gemini-2.5-flash', [
-    {
-      role: 'user',
-      content: [
-        { type: 'text', text: 'Transcribe this voice message verbatim. Output ONLY the transcription text, in the original language.' },
-        { type: 'audio', mimeType, dataBase64 },
-      ],
-    },
-  ], { temperature: 0 });
-  return result.text.trim();
+  if (isConfigured('gemini')) {
+    const result = await chatOnce('gemini', 'gemini-2.5-flash', [
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'Transcribe this voice message verbatim. Output ONLY the transcription text, in the original language.' },
+          { type: 'audio', mimeType, dataBase64 },
+        ],
+      },
+    ], { temperature: 0 });
+    return result.text.trim();
+  }
+  const openaiKey = require('../config').key('OPENAI_API_KEY');
+  if (openaiKey) {
+    const form = new FormData();
+    const ext = mimeType.includes('mpeg') ? 'mp3' : mimeType.includes('mp4') ? 'm4a' : 'ogg';
+    form.append('file', new Blob([Buffer.from(dataBase64, 'base64')], { type: mimeType }), `voice.${ext}`);
+    form.append('model', 'whisper-1');
+    const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${openaiKey}` },
+      body: form,
+      signal: AbortSignal.timeout(60000),
+    });
+    if (!res.ok) throw new Error(`whisper HTTP ${res.status}`);
+    const json = await res.json();
+    return (json.text || '').trim();
+  }
+  throw new Error('GEMINI_API_KEY or OPENAI_API_KEY required for voice transcription');
 }
 
 module.exports = { chatOnce, embed, transcribeAudio, isConfigured, isVisionModel, PROVIDERS };

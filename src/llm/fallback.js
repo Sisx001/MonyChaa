@@ -9,6 +9,18 @@ function logEvent(type, detail) {
   db.prepare('INSERT INTO events_log (type, detail) VALUES (?, ?)').run(type, detail);
 }
 
+// Rate-limit warning to the owner, throttled to once per provider per 30 min.
+const rateLimitNotified = new Map();
+function notifyRateLimit(provider, model) {
+  if (config.getSetting('rate_limit_alerts') !== 'on') return;
+  const last = rateLimitNotified.get(provider) || 0;
+  if (Date.now() - last < 30 * 60000) return;
+  rateLimitNotified.set(provider, Date.now());
+  // Lazy require to avoid a circular import (handlers → reply → fallback).
+  const { notifyOwner } = require('../bot/handlers');
+  notifyOwner(`⏳ Rate limit hit on ${provider}/${model} — falling back to the next provider.`).catch(() => {});
+}
+
 /** Build ordered candidate list: primary first, then the fallback chain. */
 function candidates({ needsVision = false } = {}) {
   const chain = [];
@@ -61,6 +73,7 @@ async function chat(messages, opts = {}) {
       lastErr = err;
       const kind = err.status === 429 ? 'rate_limit' : 'provider_error';
       logEvent(kind, `${provider}/${model}: ${err.message}`);
+      if (kind === 'rate_limit') notifyRateLimit(provider, model);
       logger.warn(`LLM ${provider}/${model} failed (${err.message}), trying next candidate`);
     }
   }

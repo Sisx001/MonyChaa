@@ -135,6 +135,12 @@ CREATE TABLE IF NOT EXISTS events_log (
 );
 `);
 
+// Additive migrations for existing databases.
+const contactCols = db.prepare('PRAGMA table_info(contacts)').all().map(c => c.name);
+if (!contactCols.includes('voice_replies')) {
+  db.exec('ALTER TABLE contacts ADD COLUMN voice_replies INTEGER DEFAULT 0');
+}
+
 bindDb(db);
 
 module.exports = db;

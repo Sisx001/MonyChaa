@@ -1,11 +1,11 @@
 'use strict';
 // Weather via OpenWeatherMap (key) or open-meteo (keyless fallback).
-const { env } = require('../config');
+const config = require('../config');
 
 async function getWeather(location) {
-  if (env.WEATHER_API_KEY) {
+  if (config.key('WEATHER_API_KEY')) {
     const res = await fetch(
-      `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(location)}&units=metric&appid=${env.WEATHER_API_KEY}`,
+      `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(location)}&units=metric&appid=${config.key('WEATHER_API_KEY')}`,
       { signal: AbortSignal.timeout(10000) }
     );
     if (!res.ok) throw new Error(`weather HTTP ${res.status}`);

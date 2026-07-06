@@ -33,6 +33,13 @@ const env = {
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
   GOOGLE_REFRESH_TOKEN: process.env.GOOGLE_REFRESH_TOKEN || '',
+  GITHUB_TOKEN: process.env.GITHUB_TOKEN || '',
+  NOTION_TOKEN: process.env.NOTION_TOKEN || '',
+  YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY || '',
+  TWITTER_BEARER_TOKEN: process.env.TWITTER_BEARER_TOKEN || '',
+  SPOTIFY_CLIENT_ID: process.env.SPOTIFY_CLIENT_ID || '',
+  SPOTIFY_CLIENT_SECRET: process.env.SPOTIFY_CLIENT_SECRET || '',
+  SPOTIFY_REFRESH_TOKEN: process.env.SPOTIFY_REFRESH_TOKEN || '',
 
   DATA_DIR: process.env.DATA_DIR || require('path').join(__dirname, '..', 'data'),
 };
@@ -77,7 +84,26 @@ const SETTING_DEFAULTS = {
   notify_errors: 'on',
   auto_search: 'on',
   active_preset: 'Custom',
+  // Custom context blocks injected into the system prompt (10-min cache).
+  inject_weather_city: '', // empty = off
+  inject_news: 'off',
+  inject_calendar: 'off',
+  // Auto-archive: summarize + clear conversations inactive for N days (0 = off).
+  auto_archive_days: '0',
+  rate_limit_alerts: 'on',
 };
+
+// API keys manageable from the admin panel (stored in DB, env is fallback).
+const KEY_NAMES = [
+  'GEMINI_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY',
+  'OPENROUTER_API_KEY', 'TOGETHER_API_KEY', 'DEEPSEEK_API_KEY', 'PERPLEXITY_API_KEY',
+  'XAI_API_KEY', 'MISTRAL_API_KEY', 'COHERE_API_KEY',
+  'SEARXNG_URL', 'SERPAPI_KEY', 'BRAVE_SEARCH_KEY', 'TAVILY_API_KEY',
+  'WEATHER_API_KEY', 'ELEVENLABS_API_KEY', 'NEWSAPI_KEY', 'DEEPL_API_KEY',
+  'GITHUB_TOKEN', 'NOTION_TOKEN', 'YOUTUBE_API_KEY', 'TWITTER_BEARER_TOKEN',
+  'SPOTIFY_CLIENT_ID', 'SPOTIFY_CLIENT_SECRET', 'SPOTIFY_REFRESH_TOKEN',
+  'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REFRESH_TOKEN',
+];
 
 let db = null;
 function bindDb(database) { db = database; }
@@ -108,7 +134,10 @@ function setSetting(key, value) {
 function allSettings() {
   const out = { ...SETTING_DEFAULTS };
   if (db) {
-    for (const row of db.prepare('SELECT key, value FROM settings').all()) out[row.key] = row.value;
+    for (const row of db.prepare('SELECT key, value FROM settings').all()) {
+      // API keys are never exposed through the settings API — see /api/keys.
+      if (!row.key.startsWith('apikey_')) out[row.key] = row.value;
+    }
   }
   return out;
 }
@@ -117,4 +146,22 @@ function getJSON(key, fallback) {
   try { return JSON.parse(getSetting(key)); } catch { return fallback; }
 }
 
-module.exports = { env, SETTING_DEFAULTS, bindDb, getSetting, setSetting, allSettings, getJSON };
+/**
+ * Resolve an API key/credential: DB-stored value (set from the admin panel)
+ * takes precedence, then the environment variable.
+ */
+function key(name) {
+  if (db) {
+    const row = db.prepare('SELECT value FROM settings WHERE key = ?').get('apikey_' + name);
+    if (row && row.value) return row.value;
+  }
+  return env[name] || '';
+}
+
+function setKey(name, value) {
+  if (!KEY_NAMES.includes(name)) throw new Error(`Unknown key: ${name}`);
+  if (value) setSetting('apikey_' + name, value);
+  else if (db) { db.prepare('DELETE FROM settings WHERE key = ?').run('apikey_' + name); cache.delete('apikey_' + name); }
+}
+
+module.exports = { env, SETTING_DEFAULTS, KEY_NAMES, bindDb, getSetting, setSetting, allSettings, getJSON, key, setKey };

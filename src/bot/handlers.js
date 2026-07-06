@@ -1,6 +1,6 @@
 'use strict';
 // Telegram Business Mode handlers: business_connection + business_message.
-const { Bot } = require('grammy');
+const { Bot, InputFile } = require('grammy');
 const db = require('../db/schema');
 const logger = require('../logger');
 const config = require('../config');
@@ -154,6 +154,27 @@ async function handleBusinessMessage(ctx) {
 
       // Human pacing: think, then type each burst.
       await sleep(reply.plan.thinkMs);
+
+      // Voice replies: synthesize the whole reply as one voice note.
+      const tts = require('../tools/tts');
+      if (reply.voiceReply && tts.available()) {
+        try {
+          await ctx.api.sendChatAction(chatId, 'record_voice', { business_connection_id: connId }).catch(() => {});
+          const fullText = reply.bursts.join('\n\n');
+          const { buffer } = await tts.speak(fullText);
+          await sleep(Math.min(reply.plan.typeMs, 8000));
+          await ctx.api.sendVoice(chatId, new InputFile(buffer, 'voice.ogg'), { business_connection_id: connId });
+          logMsg(chatId, 'outgoing', `[voice] ${fullText}`, {
+            model: `${reply.result.provider}/${reply.result.model}`,
+            tokens: (reply.result.tokensIn || 0) + (reply.result.tokensOut || 0),
+            responseTimeMs: Date.now() - receivedAt,
+          });
+          return;
+        } catch (err) {
+          logger.warn(`Voice reply failed, sending text instead: ${err.message}`);
+        }
+      }
+
       for (let i = 0; i < reply.bursts.length; i++) {
         const burst = reply.bursts[i];
         if (config.getSetting('typing_simulation') === 'on') {
@@ -172,6 +193,17 @@ async function handleBusinessMessage(ctx) {
           responseTimeMs: Date.now() - receivedAt,
         });
         if (i < reply.bursts.length - 1) await sleep(800 + Math.random() * 1500);
+      }
+
+      // A tool produced an image (image_gen / qr_code): send it after the text.
+      if (reply.photoUrl) {
+        try {
+          await ctx.api.sendChatAction(chatId, 'upload_photo', { business_connection_id: connId }).catch(() => {});
+          await ctx.api.sendPhoto(chatId, reply.photoUrl, { business_connection_id: connId });
+          logMsg(chatId, 'outgoing', `[photo] ${reply.photoUrl.slice(0, 150)}`, { model: 'tool' });
+        } catch (err) {
+          logger.warn(`Photo send failed: ${err.message}`);
+        }
       }
     } catch (err) {
       logError('business_message', err);
