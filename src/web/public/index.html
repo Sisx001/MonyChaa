@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secretary Pro — Admin</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">🤖</div>
+      <div>
+        <div class="brand-name">Secretary Pro</div>
+        <div class="brand-sub" id="conn-status"><span class="dot dot-gray"></span> connecting…</div>
+      </div>
+    </div>
+    <nav>
+      <button class="nav-btn active" data-tab="dashboard">📊 Dashboard</button>
+      <button class="nav-btn" data-tab="prompt">📝 System Prompt</button>
+      <button class="nav-btn" data-tab="gateway">🔀 Model Gateway</button>
+      <button class="nav-btn" data-tab="memory">🧠 Memory</button>
+      <button class="nav-btn" data-tab="contacts">👥 Contacts</button>
+      <button class="nav-btn" data-tab="tools">🧰 Tools & Plugins</button>
+      <button class="nav-btn" data-tab="logs">📜 Logs</button>
+      <button class="nav-btn" data-tab="settings">⚙️ Settings</button>
+    </nav>
+    <div class="sidebar-footer">
+      <div id="live-feed" class="live-feed"></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <!-- ============ DASHBOARD ============ -->
+    <section id="tab-dashboard" class="tab active">
+      <h1>Dashboard</h1>
+      <div class="stat-grid" id="stat-grid"></div>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Messages per hour (24h)</h3>
+          <canvas id="chart-hourly" height="180"></canvas>
+        </div>
+        <div class="card">
+          <h3>Cost per provider</h3>
+          <canvas id="chart-cost" height="180"></canvas>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Provider health</h3>
+          <table class="table" id="health-table">
+            <thead><tr><th>Provider</th><th>Status</th><th>Latency</th><th>Error rate</th><th>Last check</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <h3>Top contacts (30d)</h3>
+          <table class="table" id="top-contacts">
+            <thead><tr><th>Contact</th><th>Messages</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SYSTEM PROMPT ============ -->
+    <section id="tab-prompt" class="tab">
+      <h1>System Prompt</h1>
+      <div class="card">
+        <div class="row-between">
+          <h3>Core persona</h3>
+          <div class="preset-row" id="preset-row"></div>
+        </div>
+        <p class="hint">Template variables: <code>{name}</code> <code>{time}</code> <code>{date}</code> <code>{facts}</code> <code>{contact_notes}</code> <code>{chat_history}</code></p>
+        <textarea id="prompt-editor" class="code-editor" rows="10" spellcheck="false"></textarea>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="save-prompt">💾 Save prompt</button>
+          <button class="btn" id="save-version">📌 Save as version</button>
+          <button class="btn" id="preview-prompt">👁 Preview resolved</button>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Versions</h3>
+          <div id="version-list" class="version-list"></div>
+        </div>
+        <div class="card">
+          <h3>Test chat</h3>
+          <p class="hint">Send a test message through the full prompt + gateway pipeline.</p>
+          <div id="test-chat-log" class="test-chat"></div>
+          <div class="input-row">
+            <input id="test-chat-input" placeholder="Type a test message…">
+            <button class="btn btn-primary" id="test-chat-send">Send</button>
+          </div>
+        </div>
+      </div>
+      <div class="card" id="diff-card" style="display:none">
+        <div class="row-between"><h3>Diff vs current</h3><button class="btn btn-sm" onclick="document.getElementById('diff-card').style.display='none'">✕ Close</button></div>
+        <div id="diff-view" class="diff-view"></div>
+      </div>
+    </section>
+
+    <!-- ============ MODEL GATEWAY ============ -->
+    <section id="tab-gateway" class="tab">
+      <h1>Model Gateway</h1>
+      <div class="card">
+        <h3>Routing</h3>
+        <div class="form-grid">
+          <label>Primary provider
+            <select id="primary-provider"></select>
+          </label>
+          <label>Primary model
+            <select id="primary-model"></select>
+          </label>
+          <label>Load balancing
+            <select id="load-balancing"><option value="off">Off</option><option value="on">On (round-robin healthy)</option></select>
+          </label>
+        </div>
+        <h4>Fallback chain</h4>
+        <p class="hint">If the primary fails or hits a rate limit, the gateway tries these in order.</p>
+        <div id="fallback-list"></div>
+        <div class="input-row">
+          <select id="fb-provider"></select>
+          <select id="fb-model"></select>
+          <button class="btn" id="fb-add">＋ Add fallback</button>
+        </div>
+        <div class="btn-row"><button class="btn btn-primary" id="save-gateway">💾 Save routing</button></div>
+        <div class="hint" id="active-chain"></div>
+      </div>
+      <h3 class="section-title">Providers</h3>
+      <div class="provider-grid" id="provider-grid"></div>
+    </section>
+
+    <!-- ============ MEMORY ============ -->
+    <section id="tab-memory" class="tab">
+      <h1>Memory</h1>
+      <div class="card">
+        <div class="row-between">
+          <h3>Global facts / FAQ</h3>
+          <div class="btn-row">
+            <a class="btn btn-sm" href="/api/memory/export" download>⬇ Export</a>
+            <button class="btn btn-sm" id="memory-import-btn">⬆ Import</button>
+            <input type="file" id="memory-import-file" accept=".json" hidden>
+          </div>
+        </div>
+        <div class="input-row">
+          <input id="fact-key" placeholder="Key (e.g. my_job)">
+          <input id="fact-value" placeholder="Value (e.g. Software engineer at Acme)" style="flex:2">
+          <select id="fact-priority"><option>casual</option><option>important</option><option>critical</option></select>
+          <button class="btn btn-primary" id="fact-add">Add</button>
+        </div>
+        <input id="fact-search" class="search-input" placeholder="🔍 Search facts…">
+        <table class="table" id="facts-table">
+          <thead><tr><th>Key</th><th>Value</th><th>Priority</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="row-between"><h3>Extracted memories (vector recall)</h3></div>
+        <div class="input-row">
+          <input id="mem-content" placeholder="Add a memory manually…" style="flex:2">
+          <input id="mem-chat" placeholder="chat_id (0 = global)" style="max-width:160px">
+          <select id="mem-priority"><option>casual</option><option>important</option><option>critical</option></select>
+          <button class="btn btn-primary" id="mem-add">Add</button>
+        </div>
+        <input id="mem-search" class="search-input" placeholder="🔍 Filter memories…">
+        <table class="table" id="memories-table">
+          <thead><tr><th>Chat</th><th>Memory</th><th>Priority</th><th>Created</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ CONTACTS ============ -->
+    <section id="tab-contacts" class="tab">
+      <h1>Contacts</h1>
+      <div class="card">
+        <div class="row-between">
+          <input id="contact-search" class="search-input" placeholder="🔍 Search name, @username, chat_id…" style="max-width:340px">
+          <div class="btn-row">
+            <button class="btn" id="contact-import-btn">⬆ Import Telegram export</button>
+            <input type="file" id="contact-import-file" accept=".json" hidden>
+            <button class="btn btn-primary" id="contact-add">＋ Add contact</button>
+          </div>
+        </div>
+        <table class="table" id="contacts-table">
+          <thead><tr><th>Name</th><th>@username</th><th>chat_id</th><th>Relationship</th><th>Tone</th><th>Auto-reply</th><th>Priority</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ TOOLS ============ -->
+    <section id="tab-tools" class="tab">
+      <h1>Tools & Plugins</h1>
+      <div class="card">
+        <h3>Available tools</h3>
+        <p class="hint">The bot auto-invokes these when a message needs live data. Test them here.</p>
+        <div id="tools-list"></div>
+      </div>
+      <div class="card">
+        <h3>Scheduled messages</h3>
+        <div class="input-row">
+          <input id="sched-chat" placeholder="chat_id" style="max-width:140px">
+          <input id="sched-content" placeholder="Message…" style="flex:2">
+          <input id="sched-at" type="datetime-local">
+          <button class="btn btn-primary" id="sched-add">Schedule</button>
+        </div>
+        <table class="table" id="sched-table">
+          <thead><tr><th>Chat</th><th>Message</th><th>Send at</th><th>Status</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3>Automation</h3>
+        <div class="form-grid">
+          <label>Away mode
+            <select id="away-mode" data-setting="away_mode"><option value="off">Off</option><option value="on">On</option></select>
+          </label>
+          <label>Away message
+            <input id="away-message" data-setting="away_message">
+          </label>
+          <label>Away schedule start (HH:MM)
+            <input id="away-start" data-setting="away_schedule_start" placeholder="23:00">
+          </label>
+          <label>Away schedule end (HH:MM)
+            <input id="away-end" data-setting="away_schedule_end" placeholder="07:00">
+          </label>
+          <label>Welcome message for new contacts
+            <input id="welcome-message" data-setting="welcome_message" placeholder="(empty = disabled)">
+          </label>
+          <label>Keyword triggers → notify me (JSON array)
+            <input id="keyword-triggers" data-setting="keyword_triggers" placeholder='["urgent","asap"]'>
+          </label>
+        </div>
+        <div class="btn-row"><button class="btn btn-primary" id="save-automation">💾 Save automation</button></div>
+      </div>
+    </section>
+
+    <!-- ============ LOGS ============ -->
+    <section id="tab-logs" class="tab">
+      <h1>Logs</h1>
+      <div class="subtabs">
+        <button class="subtab active" data-log="messages">Messages</button>
+        <button class="subtab" data-log="errors">Errors</button>
+        <button class="subtab" data-log="events">Events</button>
+        <button class="subtab" data-log="tokens">Token usage</button>
+      </div>
+      <div class="card">
+        <div class="input-row" id="log-filters">
+          <input id="log-search" placeholder="🔍 Search content…">
+          <input id="log-chat" placeholder="chat_id" style="max-width:140px">
+          <select id="log-status"><option value="">Any status</option><option value="ok">ok</option><option value="error">error</option></select>
+          <button class="btn" id="log-refresh">Refresh</button>
+        </div>
+        <div class="table-scroll"><table class="table" id="logs-table"><thead></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- ============ SETTINGS ============ -->
+    <section id="tab-settings" class="tab">
+      <h1>Settings</h1>
+      <div class="card">
+        <h3>General</h3>
+        <div class="form-grid">
+          <label>Timezone <input data-setting="timezone" placeholder="Asia/Singapore"></label>
+          <label>Reply language
+            <select data-setting="language">
+              <option value="auto">Auto (match sender)</option>
+              <option value="English">English</option><option value="Spanish">Spanish</option>
+              <option value="French">French</option><option value="German">German</option>
+              <option value="Russian">Russian</option><option value="Chinese">Chinese</option>
+              <option value="Khmer">Khmer</option><option value="Thai">Thai</option>
+            </select>
+          </label>
+          <label>Max response length (chars) <input type="number" data-setting="max_response_length"></label>
+          <label>Auto-reply default for new contacts
+            <select data-setting="auto_reply_default"><option value="on">On</option><option value="off">Off</option></select>
+          </label>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Typing simulation</h3>
+        <div class="form-grid">
+          <label>Typing simulation <select data-setting="typing_simulation"><option value="on">On</option><option value="off">Off</option></select></label>
+          <label>Typing speed <select data-setting="typing_speed"><option value="slow">Slow</option><option value="medium">Medium</option><option value="fast">Fast</option></select></label>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Memory</h3>
+        <div class="form-grid">
+          <label>History limit (messages) <input type="number" data-setting="history_limit"></label>
+          <label>Vector memory <select data-setting="vector_memory"><option value="on">On</option><option value="off">Off</option></select></label>
+          <label>Memory isolation per contact <select data-setting="memory_isolation"><option value="on">Isolated</option><option value="off">Shared</option></select></label>
+          <label>Auto-extract facts <select data-setting="auto_extract_facts"><option value="on">On</option><option value="off">Off</option></select></label>
+          <label>Auto-summarize after N messages <input type="number" data-setting="auto_summarize_threshold"></label>
+          <label>Auto web search <select data-setting="auto_search"><option value="on">On</option><option value="off">Off</option></select></label>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Notifications & alerts</h3>
+        <div class="form-grid">
+          <label>Daily summary <select data-setting="daily_summary"><option value="on">On</option><option value="off">Off</option></select></label>
+          <label>Daily summary time (HH:MM) <input data-setting="daily_summary_time" placeholder="21:00"></label>
+          <label>Cost alert threshold ($/day, 0=off) <input type="number" step="0.5" data-setting="cost_alert_threshold"></label>
+          <label>Notify on new contact <select data-setting="notify_new_contact"><option value="on">On</option><option value="off">Off</option></select></label>
+          <label>Notify on errors <select data-setting="notify_errors"><option value="on">On</option><option value="off">Off</option></select></label>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Data</h3>
+        <div class="form-grid">
+          <label>Retention (days, 0 = keep forever) <input type="number" data-setting="data_retention_days"></label>
+        </div>
+        <div class="btn-row">
+          <a class="btn" href="/api/backup" download>⬇ Backup everything (JSON)</a>
+          <button class="btn" id="restore-btn">⬆ Restore from backup</button>
+          <input type="file" id="restore-file" accept=".json" hidden>
+        </div>
+      </div>
+      <div class="btn-row sticky-save">
+        <button class="btn btn-primary btn-lg" id="save-settings">💾 Save all settings</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Contact editor modal -->
+<div class="modal-backdrop" id="contact-modal" style="display:none">
+  <div class="modal">
+    <div class="row-between"><h3 id="contact-modal-title">Edit contact</h3><button class="btn btn-sm" id="contact-modal-close">✕</button></div>
+    <div class="form-grid">
+      <label>chat_id <input id="c-chat_id" type="number"></label>
+      <label>Name <input id="c-name"></label>
+      <label>@username <input id="c-username"></label>
+      <label>Relationship <input id="c-relationship" placeholder="friend / client / family"></label>
+      <label>Tone
+        <select id="c-tone"><option>casual</option><option>professional</option><option>flirty</option><option>formal</option><option>minimal</option></select>
+      </label>
+      <label>Gender <select id="c-gender"><option value=""></option><option>male</option><option>female</option><option>other</option></select></label>
+      <label>Auto-reply <select id="c-auto_reply"><option value="1">On</option><option value="0">Off</option></select></label>
+      <label>Priority (VIP) <select id="c-priority"><option value="0">Normal</option><option value="1">VIP</option></select></label>
+      <label>Delay multiplier <input id="c-delay_multiplier" type="number" step="0.1" value="1"></label>
+      <label>Max message length <input id="c-max_length" type="number" placeholder="(default)"></label>
+    </div>
+    <label class="full">Rules (one per line)
+      <textarea id="c-rules" rows="3" placeholder="never quote prices&#10;use emojis"></textarea>
+    </label>
+    <label class="full">Blocked topics (one per line)
+      <textarea id="c-blocked_topics" rows="2" placeholder="politics"></textarea>
+    </label>
+    <label class="full">Notes <textarea id="c-notes" rows="2"></textarea></label>
+    <label class="full">Custom system prompt override (empty = use global)
+      <textarea id="c-custom_prompt" rows="3"></textarea>
+    </label>
+    <details class="full">
+      <summary>🎓 Relationship learning — paste a real chat</summary>
+      <textarea id="c-transcript" rows="5" placeholder="Paste a real conversation with this person. The AI learns how you talk to them."></textarea>
+      <button class="btn" id="c-learn">Learn style</button>
+      <pre id="c-learned" class="learned-view"></pre>
+    </details>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="contact-save">💾 Save contact</button>
+      <button class="btn" id="contact-history">📜 View history</button>
+      <button class="btn btn-danger" id="contact-delete">🗑 Delete</button>
+    </div>
+    <div id="c-history-view" class="test-chat" style="display:none"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+<script src="/vendor/chart.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

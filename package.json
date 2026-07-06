@@ -1,0 +1,25 @@
+{
+  "name": "secretary-pro",
+  "version": "1.0.0",
+  "description": "Telegram AI Secretary Bot with multi-provider LLM gateway and web admin dashboard",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node --test test/"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "chart.js": "^4.4.9",
+    "dotenv": "^16.5.0",
+    "express": "^4.21.2",
+    "grammy": "^1.36.1",
+    "node-cron": "^3.0.3",
+    "winston": "^3.17.0"
+  },
+  "license": "MIT"
+}
