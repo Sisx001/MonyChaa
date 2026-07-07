@@ -36,9 +36,18 @@ function stats() {
 
   const topContacts = db.prepare(`
     SELECT m.chat_id, COALESCE(c.name, c.username, m.chat_id) name, COUNT(*) count
-    FROM messages_log m LEFT JOIN contacts c ON c.chat_id = m.chat_id
+    FROM messages_log m LEFT JOIN contacts c ON c.chat_id = m.chat_id AND c.assistant_id = m.assistant_id
     WHERE m.created_at >= date('now', '-30 days')
     GROUP BY m.chat_id ORDER BY count DESC LIMIT 10
+  `).all();
+
+  // Per-assistant message breakdown (today), labelled by assistant name.
+  const perAssistant = db.prepare(`
+    SELECT m.assistant_id id,
+      COALESCE(a.name, CASE WHEN m.assistant_id = 0 THEN 'Primary' ELSE 'assistant ' || m.assistant_id END) name,
+      COUNT(*) count
+    FROM messages_log m LEFT JOIN assistants a ON a.id = m.assistant_id
+    WHERE m.created_at >= date('now') GROUP BY m.assistant_id ORDER BY count DESC
   `).all();
 
   const health = db.prepare('SELECT * FROM provider_health ORDER BY provider').all();
@@ -50,7 +59,7 @@ function stats() {
     responseRate: incoming ? Math.round((outgoing / incoming) * 100) : 0,
     errorsToday,
     costToday, costTotal, tokensToday,
-    perProvider, perHour, topContacts, health,
+    perProvider, perHour, topContacts, perAssistant, health,
   };
 }
 

@@ -191,6 +191,11 @@ async function loadDashboard() {
   $('#top-contacts tbody').innerHTML = s.topContacts.length ? s.topContacts.map(c =>
     `<tr><td>${esc(c.name)}</td><td>${c.count}</td></tr>`).join('')
     : '<tr><td colspan="2" class="hint">No messages yet</td></tr>';
+
+  const pa = $('#per-assistant tbody');
+  if (pa) pa.innerHTML = (s.perAssistant && s.perAssistant.length) ? s.perAssistant.map(a =>
+    `<tr><td>${esc(a.name)}</td><td>${a.count}</td></tr>`).join('')
+    : '<tr><td colspan="2" class="hint">No messages today</td></tr>';
 }
 function chartOpts() {
   return {
