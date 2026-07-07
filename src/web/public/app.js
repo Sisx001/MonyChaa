@@ -884,6 +884,19 @@ function fillChatModels() {
 }
 $('#chat-provider').addEventListener('change', fillChatModels);
 $('#chat-temp').addEventListener('input', () => $('#chat-temp-out').textContent = $('#chat-temp').value);
+$('#chat-system-mode').addEventListener('change', () => {
+  $('#chat-system-text').style.display = $('#chat-system-mode').value === 'custom' ? 'block' : 'none';
+});
+$('#chat-export').addEventListener('click', () => {
+  if (!chatHistory.length) return toast('Nothing to export', false);
+  const text = chatHistory.map(m => `## ${m.role === 'user' ? 'You' : 'Assistant'}\n${m.content}`).join('\n\n');
+  const blob = new Blob([text], { type: 'text/markdown' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'playground-chat.md';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
 
 async function sendChatRequest() {
   if (chatBusy) return;
@@ -905,6 +918,7 @@ async function sendChatRequest() {
         temperature: Number($('#chat-temp').value),
         max_tokens: Number($('#chat-maxtok').value) || 1024,
         use_persona: $('#chat-system-mode').value === 'persona',
+        system: $('#chat-system-mode').value === 'custom' ? $('#chat-system-text').value : undefined,
       },
     });
     chatHistory.push({

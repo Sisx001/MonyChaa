@@ -165,8 +165,10 @@
           <select id="chat-model" title="Model"></select>
           <select id="chat-system-mode" title="System prompt">
             <option value="persona">Bot persona</option>
+            <option value="custom">Custom prompt</option>
             <option value="raw">No system prompt</option>
           </select>
+          <button class="btn btn-sm" id="chat-export" title="Export conversation"><svg class="ic ic-sm"><use href="#i-download"/></svg></button>
           <label class="inline-range" title="Temperature">
             <span>T°</span>
             <input type="range" id="chat-temp" min="0" max="2" step="0.1" value="0.8">
@@ -175,6 +177,7 @@
           <input type="number" id="chat-maxtok" value="1024" min="16" max="4096" title="Max tokens" class="chat-maxtok">
           <button class="btn btn-sm" id="chat-clear" title="Clear conversation"><svg class="ic ic-sm"><use href="#i-trash"/></svg> Clear</button>
         </div>
+        <textarea id="chat-system-text" class="code-editor" rows="3" placeholder="Custom system prompt…" style="display:none;margin:0 14px 0;width:auto"></textarea>
         <div class="chat-thread" id="chat-thread">
           <div class="chat-empty" id="chat-empty">
             <svg class="ic ic-xl"><use href="#i-chat"/></svg>
