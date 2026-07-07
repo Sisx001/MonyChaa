@@ -105,7 +105,7 @@ Owner commands (DM the bot): `/status`, `/away`, `/pause`, `/summary`, `/id`, `/
 - **Brute-force lockout** — 6 failed logins per IP in 15 min → temporary block.
 - **IP bans** — ban any IP (one click from a failed attempt, or manually). Banned IPs are refused everywhere and their sessions killed.
 - **Audit log** — every login, user change, ban, restart, character apply, autofix is recorded with IP.
-- Put it behind a reverse proxy with HTTPS for production; `trust proxy` is enabled so client IPs are read from `X-Forwarded-For`.
+- Put it behind a reverse proxy with HTTPS for production. Set `TRUST_PROXY=1` **only** when actually behind a proxy — this makes the app read the client IP from `X-Forwarded-For` (needed for correct IP bans/rate limits). Leaving it unset (the default) uses the socket address, so a directly-exposed instance can't be tricked by a spoofed header. Also set `COOKIE_SECURE=1` behind HTTPS.
 
 ---
 

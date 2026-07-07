@@ -302,3 +302,11 @@ test('geoip: flag emoji + private IP detection', () => {
   assert.ok(geo.isPrivate('192.168.1.5'));
   assert.ok(!geo.isPrivate('8.8.8.8'));
 });
+
+test('auth clientIp ignores X-Forwarded-For unless TRUST_PROXY is set', () => {
+  // Default test env has no TRUST_PROXY, so spoofed XFF must be ignored.
+  const auth = require('../src/web/auth');
+  const req = { headers: { 'x-forwarded-for': '6.6.6.6' }, socket: { remoteAddress: '10.0.0.5' } };
+  const ip = auth.clientIp(req);
+  assert.strictEqual(ip, '10.0.0.5', 'spoofed X-Forwarded-For must not win when proxy is untrusted');
+});

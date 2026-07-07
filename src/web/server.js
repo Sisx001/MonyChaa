@@ -35,7 +35,8 @@ setInterval(() => {
 function createServer() {
   const app = express();
   app.disable('x-powered-by');
-  app.set('trust proxy', true);
+  // Only trust proxy headers when explicitly running behind one.
+  app.set('trust proxy', process.env.TRUST_PROXY === '1');
 
   // Security headers on every response.
   app.use((req, res, next) => {

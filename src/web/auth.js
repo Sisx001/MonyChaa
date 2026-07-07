@@ -44,9 +44,16 @@ function enabled() {
 }
 
 // ---- request helpers ----
+// X-Forwarded-For is only trusted when TRUST_PROXY=1 (i.e. you actually run
+// behind a reverse proxy). Otherwise it's attacker-spoofable and would let
+// someone evade IP bans and rate limits, so we use the socket address.
+const TRUST_PROXY = process.env.TRUST_PROXY === '1';
 function clientIp(req) {
-  const xf = (req.headers['x-forwarded-for'] || '').split(',')[0].trim();
-  return xf || req.socket?.remoteAddress || 'unknown';
+  if (TRUST_PROXY) {
+    const xf = (req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+    if (xf) return xf;
+  }
+  return (req.socket?.remoteAddress || req.connection?.remoteAddress || 'unknown').replace(/^::ffff:/, '');
 }
 function parseCookie(req, name) {
   const header = req.headers.cookie || '';
