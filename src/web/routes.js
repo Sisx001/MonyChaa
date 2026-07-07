@@ -362,9 +362,54 @@ router.get('/logs/tokens', wrap((req, res) => {
   res.json(db.prepare('SELECT * FROM token_usage ORDER BY id DESC LIMIT 100').all());
 }));
 
+// ---------- Assistants (multi-tenancy) ----------
+const assistants = require('../assistants');
+const auth = require('./auth');
+
+router.get('/assistants', wrap((req, res) => res.json(assistants.list())));
+router.post('/assistants', wrap(async (req, res) => {
+  const { name, bot_token, owner_user_id, system_prompt } = req.body;
+  if (!name) return res.status(400).json({ error: 'name required' });
+  const id = assistants.create({
+    name, bot_token: bot_token || null,
+    owner_user_id: owner_user_id ? Number(owner_user_id) : null,
+    admin_user_id: req.user?.id || null, system_prompt: system_prompt || null,
+  });
+  if (bot_token) { try { await assistants.start(id); } catch { /* reported via status */ } }
+  auth.audit(req, 'create_assistant', name, req.user);
+  res.json({ ok: true, id });
+}));
+router.put('/assistants/:id', wrap(async (req, res) => {
+  assistants.update(Number(req.params.id), req.body || {});
+  // Restart to apply token/prompt changes if it was running.
+  if (req.body.bot_token !== undefined || req.body.system_prompt !== undefined) {
+    try { await assistants.stop(Number(req.params.id)); if (req.body.enabled !== 0) await assistants.start(Number(req.params.id)); } catch { /* status reflects it */ }
+  }
+  res.json({ ok: true });
+}));
+router.post('/assistants/:id/start', wrap(async (req, res) => {
+  try { await assistants.start(Number(req.params.id)); res.json({ ok: true }); }
+  catch (err) { res.json({ ok: false, error: err.message }); }
+}));
+router.post('/assistants/:id/stop', wrap(async (req, res) => {
+  await assistants.stop(Number(req.params.id)); res.json({ ok: true });
+}));
+router.delete('/assistants/:id', wrap(async (req, res) => {
+  if (req.query.purge === '1') assistants.purgeData(Number(req.params.id));
+  await assistants.remove(Number(req.params.id));
+  auth.audit(req, 'delete_assistant', req.params.id, req.user);
+  res.json({ ok: true });
+}));
+
+// ---------- Live model catalog ----------
+const models = require('../llm/models');
+router.get('/models/:provider', wrap(async (req, res) => {
+  try { res.json(await models.listModels(req.params.provider)); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+}));
+
 // ---------- System monitoring ----------
 const systemMon = require('../system');
-const auth = require('./auth');
 
 router.get('/system', wrap((req, res) => {
   res.json({ metrics: systemMon.metrics(), diagnostics: systemMon.diagnostics() });

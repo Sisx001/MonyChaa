@@ -43,11 +43,11 @@ function parseJsonArray(text) {
   try { const v = JSON.parse(text || '[]'); return Array.isArray(v) ? v : []; } catch { return []; }
 }
 
-/** Build the full system prompt for a contact. */
-function buildSystemPrompt(contact, extraContext) {
+/** Build the full system prompt for a contact. `promptOverride` (per-assistant) wins over the global prompt. */
+function buildSystemPrompt(contact, extraContext, promptOverride = null) {
   const tz = config.getSetting('timezone') || 'UTC';
   const now = new Date();
-  const template = contact?.custom_prompt || config.getSetting('system_prompt');
+  const template = contact?.custom_prompt || promptOverride || config.getSetting('system_prompt');
   const vars = {
     name: contact?.name || contact?.username || 'them',
     time: now.toLocaleTimeString('en-US', { timeZone: tz, hour: '2-digit', minute: '2-digit' }),
@@ -181,13 +181,15 @@ function replyPolicyBlock(incomingText) {
   return null;
 }
 
-async function generateReply(chatId, incomingText, { attachments = [] } = {}) {
+async function generateReply(chatId, incomingText, { attachments = [], assistant = null } = {}) {
+  const aid = assistant?.id || 0;
+  const promptOverride = assistant?.systemPrompt || null;
   const contact = getContact(chatId);
   const start = Date.now();
 
   const blocked = replyPolicyBlock(incomingText);
   if (blocked) {
-    conversations.addMessage(chatId, 'user', incomingText);
+    conversations.addMessage(chatId, 'user', incomingText, 0, aid);
     logger.info(`Reply skipped for ${chatId}: ${blocked}`);
     return null;
   }
@@ -211,11 +213,11 @@ async function generateReply(chatId, incomingText, { attachments = [] } = {}) {
 
   if (contact && !contact.auto_reply) return null;
 
-  conversations.addMessage(chatId, 'user', incomingText);
+  conversations.addMessage(chatId, 'user', incomingText, 0, aid);
 
   // Gather context: semantic memories + tool output + injected blocks (all best-effort).
   const [memories, toolResult, injected] = await Promise.all([
-    vector.recall(chatId, incomingText).catch(() => []),
+    vector.recall(chatId, incomingText, undefined, aid).catch(() => []),
     maybeRunTool(incomingText).catch(() => null),
     injectedContext().catch(() => ''),
   ]);
@@ -228,8 +230,8 @@ async function generateReply(chatId, incomingText, { attachments = [] } = {}) {
   }
   if (toolResult) extraContext += (extraContext ? '\n\n' : '') + toolResult.context;
 
-  const history = conversations.getHistory(chatId);
-  const messages = [{ role: 'system', content: buildSystemPrompt(contact, extraContext) }];
+  const history = conversations.getHistory(chatId, undefined, aid);
+  const messages = [{ role: 'system', content: buildSystemPrompt(contact, extraContext, promptOverride) }];
   for (const h of history) {
     messages.push({ role: h.role === 'assistant' ? 'assistant' : 'user', content: h.content });
   }
@@ -251,7 +253,7 @@ async function generateReply(chatId, incomingText, { attachments = [] } = {}) {
   if (!replyText) throw new Error('LLM returned empty reply');
   if (replyText.length > maxLen * 1.5) replyText = replyText.slice(0, maxLen * 1.5).replace(/\s+\S*$/, '');
 
-  conversations.addMessage(chatId, 'assistant', replyText, result.tokensOut);
+  conversations.addMessage(chatId, 'assistant', replyText, result.tokensOut, aid);
 
   const plan = delayPlan(incomingText, replyText, {
     delayMultiplier: contact?.delay_multiplier ?? 1,
@@ -261,8 +263,8 @@ async function generateReply(chatId, incomingText, { attachments = [] } = {}) {
 
   // Background housekeeping (never blocks the reply).
   setImmediate(() => {
-    vector.extractFacts(chatId, incomingText, replyText).catch(() => {});
-    conversations.maybeSummarize(chatId).catch(() => {});
+    vector.extractFacts(chatId, incomingText, replyText, aid).catch(() => {});
+    conversations.maybeSummarize(chatId, aid).catch(() => {});
   });
 
   logger.info(`Reply for ${chatId} via ${result.provider}/${result.model} in ${Date.now() - start}ms`);

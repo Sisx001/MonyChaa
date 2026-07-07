@@ -13,18 +13,9 @@ async function main() {
   const server = createServer();
   scheduler.start();
 
+  // Primary bot (env token) starts itself; then boot any additional assistants.
   const bot = createBot();
-  if (bot) {
-    // Business Mode requires these allowed_updates explicitly.
-    bot.start({
-      allowed_updates: [
-        'message', 'business_connection', 'business_message',
-        'edited_business_message', 'deleted_business_messages',
-        'my_chat_member',
-      ],
-      onStart: (info) => logger.info(`Bot @${info.username} polling. Enable Business Mode in @BotFather, then connect it in Telegram Settings → Telegram Business → Chatbots.`),
-    }).catch(err => logError('bot_start', err));
-  }
+  require('./assistants').startAll().catch(err => logError('assistants_start', err));
 
   let shuttingDown = false;
   const shutdown = async (signal) => {

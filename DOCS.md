@@ -146,7 +146,44 @@ Optional: every provider/tool key (also settable in-panel). See `.env.example`.
 
 ---
 
-## 12. Roadmap — full multi-tenancy
+## 12. Multiple assistants (multi-tenancy)
 
-Today's accounts govern **panel access** (multi-admin, roles, audit). The next phase is **per-user assistants**: each user brings their own bot token and gets an isolated brain — separate contacts, memory, prompt, skills and settings namespace. The account/role/security foundation shipped here is the groundwork; the remaining work is namespacing the bot runtime and data layer by owner. Track it in the repo issues.
+**Assistants tab.** Run several bots side by side, each fully isolated:
+- its own **bot token** (from @BotFather) and **owner** Telegram id
+- its own **system prompt / persona**
+- a **separate brain** — conversations, memories, message logs and extracted
+  facts are all scoped by `assistant_id`, so assistants never see each other's
+  history
+
+The **primary** bot (assistant id 0) uses the `.env` token. Add more from the
+panel: paste a token, set the owner and prompt, and it starts polling
+immediately. Start/stop each independently; delete with an option to purge or
+keep its brain. Each panel account can own its assistants (`admin_user_id`).
+
+Currently shared across assistants: global settings (temperature, tools,
+skills) and the contacts table. Per-assistant setting overlays are the next
+increment; the data layer already carries `assistant_id` on every relevant
+table to support it.
+
+## 13. Live model catalog
+
+**Model Gateway → Browse models.** Fetches the current, real model list from
+the selected provider (OpenRouter, OpenAI, Groq, Mistral, Together, DeepSeek,
+xAI, Gemini, Anthropic, Ollama…), with context length, pricing, and free/vision
+badges. Filter, click **Use**, then Save routing. Falls back to the curated
+static list when a provider has no live endpoint or key. Cached 10 minutes.
+
+## 14. Configure from Telegram
+
+DM the bot (owner only):
+- `/settings` — show current values
+- `/set <key> <value>` — change a whitelisted setting (temperature, reply_style,
+  emoji_usage, typing_speed, language, agent_name, away_mode, bot_enabled,
+  reply_probability, max_response_length, footers, group toggles…)
+- `/get <key>` — read one
+- `/persona <text>` — replace the system prompt (previous saved as a version)
+- `/model <provider> <model>` — switch the primary model
+- `/character <id>` — apply a preloaded persona
+- `/skills` — list skills
+- `/status`, `/pause`, `/away`, `/summary`, `/id`, `/help`
 ```

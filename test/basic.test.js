@@ -217,3 +217,46 @@ test('conversation history add/get/clear', () => {
   conv.clearHistory(888);
   assert.strictEqual(conv.getHistory(888).length, 0);
 });
+
+test('multi-tenancy: conversations are isolated by assistant_id', () => {
+  const conv = require('../src/memory/conversations');
+  conv.addMessage(500, 'user', 'primary brain', 0, 0);
+  conv.addMessage(500, 'user', 'assistant-7 brain', 0, 7);
+  const primary = conv.getHistory(500, 50, 0);
+  const seven = conv.getHistory(500, 50, 7);
+  assert.strictEqual(primary.length, 1);
+  assert.strictEqual(seven.length, 1);
+  assert.strictEqual(primary[0].content, 'primary brain');
+  assert.strictEqual(seven[0].content, 'assistant-7 brain');
+  conv.clearHistory(500, 0); conv.clearHistory(500, 7);
+  assert.strictEqual(conv.getHistory(500, 50, 7).length, 0);
+});
+
+test('assistants: create/list/update/remove lifecycle', async () => {
+  const assistants = require('../src/assistants');
+  const id = assistants.create({ name: 'Test Asst', system_prompt: 'You are test.' });
+  assert.ok(id > 0);
+  assert.ok(assistants.list().some(a => a.id === id && a.name === 'Test Asst'));
+  assistants.update(id, { name: 'Renamed' });
+  assert.ok(assistants.list().some(a => a.id === id && a.name === 'Renamed'));
+  await assistants.remove(id);
+  assert.ok(!assistants.list().some(a => a.id === id));
+});
+
+test('telegram settings: SETTABLE validators accept/reject correctly', () => {
+  const { SETTABLE } = require('../src/bot/telegramSettings');
+  assert.strictEqual(SETTABLE.temperature('1.5'), '1.5');
+  assert.strictEqual(SETTABLE.temperature('9'), null);
+  assert.strictEqual(SETTABLE.emoji_usage('heavy'), 'heavy');
+  assert.strictEqual(SETTABLE.emoji_usage('bogus'), null);
+  assert.strictEqual(SETTABLE.bot_enabled('ON'), 'on');
+  assert.strictEqual(SETTABLE.reply_probability('50'), '50');
+  assert.strictEqual(SETTABLE.reply_probability('200'), null);
+});
+
+test('model catalog: static fallback returns known models', async () => {
+  const { listModels } = require('../src/llm/models');
+  const models = await listModels('cohere'); // no key → static list
+  assert.ok(Array.isArray(models) && models.length > 0);
+  assert.ok(models.every(m => m.id));
+});

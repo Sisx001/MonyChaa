@@ -210,6 +210,23 @@ CREATE TABLE IF NOT EXISTS audit_log (
   created_at TEXT DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at);
+
+-- Multi-tenancy: each assistant is an isolated bot with its own token, owner,
+-- prompt and settings overlay. assistant_id 0 is the primary (env) bot.
+CREATE TABLE IF NOT EXISTS assistants (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT,
+  bot_token TEXT,
+  owner_user_id INTEGER,
+  admin_user_id INTEGER,        -- which panel account owns this assistant
+  enabled INTEGER DEFAULT 1,
+  system_prompt TEXT,
+  settings_json TEXT DEFAULT '{}',
+  status TEXT DEFAULT 'stopped', -- stopped | running | error
+  username TEXT,
+  last_error TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
 `);
 
 // Additive migrations for existing databases.
@@ -217,6 +234,16 @@ const contactCols = db.prepare('PRAGMA table_info(contacts)').all().map(c => c.n
 if (!contactCols.includes('voice_replies')) {
   db.exec('ALTER TABLE contacts ADD COLUMN voice_replies INTEGER DEFAULT 0');
 }
+
+// assistant_id scoping columns (default 0 = primary bot).
+for (const table of ['contacts', 'conversations', 'memories', 'messages_log', 'scheduled_messages', 'facts']) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name);
+  if (!cols.includes('assistant_id')) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN assistant_id INTEGER DEFAULT 0`);
+  }
+}
+db.exec('CREATE INDEX IF NOT EXISTS idx_conv_assistant ON conversations(assistant_id, chat_id, id)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_contacts_assistant ON contacts(assistant_id)');
 
 bindDb(db);
 

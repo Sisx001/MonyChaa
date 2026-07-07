@@ -15,24 +15,24 @@ function cosine(a, b) {
   return denom ? dot / denom : 0;
 }
 
-async function remember(chatId, content, priority = 'casual') {
+async function remember(chatId, content, priority = 'casual', assistantId = 0) {
   const vec = await embed(content);
-  db.prepare('INSERT INTO memories (chat_id, content, priority, embedding) VALUES (?, ?, ?, ?)')
-    .run(chatId, content, priority, vec ? JSON.stringify(vec) : null);
+  db.prepare('INSERT INTO memories (chat_id, content, priority, embedding, assistant_id) VALUES (?, ?, ?, ?, ?)')
+    .run(chatId, content, priority, vec ? JSON.stringify(vec) : null, assistantId);
 }
 
 /**
- * Semantic recall. With memory_isolation=on only this chat's memories are searched;
- * off shares memories across all contacts.
+ * Semantic recall. Always scoped to the assistant. With memory_isolation=on
+ * only this chat's memories are searched; off shares within the assistant.
  */
-async function recall(chatId, query, limit) {
+async function recall(chatId, query, limit, assistantId = 0) {
   if (config.getSetting('vector_memory') !== 'on') return [];
   limit = limit || Number(config.getSetting('recall_count')) || 5;
   const threshold = Number(config.getSetting('similarity_threshold')) || 0.45;
   const isolated = config.getSetting('memory_isolation') === 'on';
   const rows = isolated
-    ? db.prepare('SELECT * FROM memories WHERE chat_id = ?').all(chatId)
-    : db.prepare('SELECT * FROM memories').all();
+    ? db.prepare('SELECT * FROM memories WHERE chat_id = ? AND assistant_id = ?').all(chatId, assistantId)
+    : db.prepare('SELECT * FROM memories WHERE assistant_id = ?').all(assistantId);
   if (!rows.length) return [];
 
   const qvec = await embed(query);
@@ -69,7 +69,7 @@ function forget(id) {
 }
 
 /** Auto-extract durable facts from a recent exchange (fire-and-forget). */
-async function extractFacts(chatId, userText, assistantText) {
+async function extractFacts(chatId, userText, assistantText, assistantId = 0) {
   if (config.getSetting('auto_extract_facts') !== 'on') return;
   // Only bother for substantive messages.
   if (userText.length < 40) return;
@@ -87,7 +87,7 @@ async function extractFacts(chatId, userText, assistantText) {
     const facts = JSON.parse(cleaned);
     if (!Array.isArray(facts)) return;
     for (const f of facts.slice(0, 5)) {
-      if (f && f.fact) await remember(chatId, f.fact, ['critical', 'important', 'casual'].includes(f.priority) ? f.priority : 'casual');
+      if (f && f.fact) await remember(chatId, f.fact, ['critical', 'important', 'casual'].includes(f.priority) ? f.priority : 'casual', assistantId);
     }
   } catch (err) {
     logger.debug(`extractFacts skipped: ${err.message}`);

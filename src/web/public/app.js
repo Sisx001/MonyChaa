@@ -947,6 +947,91 @@ async function loadCharacters() {
   }));
 }
 
+// ---------- ASSISTANTS ----------
+async function loadAssistants() {
+  const rows = await api('/assistants');
+  const grid = $('#assistants-list');
+  grid.innerHTML = rows.length ? rows.map(a => `
+    <div class="char-card">
+      <div class="char-head"><svg class="ic"><use href="#i-bot"/></svg><b>${esc(a.name)}</b>
+        <span class="badge badge-${a.status === 'running' ? 'green' : a.status === 'error' ? 'red' : 'gray'}">${esc(a.status)}</span>
+      </div>
+      <div class="hint">${a.username ? '@' + esc(a.username) + ' · ' : ''}owner ${a.owner_user_id || '—'}</div>
+      ${a.last_error ? `<div class="hint" style="color:var(--red)">${esc(a.last_error)}</div>` : ''}
+      <div class="btn-row">
+        ${a.running
+          ? `<button class="btn btn-sm" data-asst-stop="${a.id}"><svg class="ic ic-sm"><use href="#i-power"/></svg> Stop</button>`
+          : `<button class="btn btn-sm btn-primary" data-asst-start="${a.id}"><svg class="ic ic-sm"><use href="#i-play"/></svg> Start</button>`}
+        <button class="btn btn-sm btn-danger" data-asst-del="${a.id}"><svg class="ic ic-sm"><use href="#i-trash"/></svg></button>
+      </div>
+    </div>`).join('')
+    : '<p class="hint">No additional assistants. The primary bot runs from your .env token. Add one to run a second bot with its own brain.</p>';
+  $$('[data-asst-start]').forEach(b => b.addEventListener('click', async () => {
+    const r = await api(`/assistants/${b.dataset.asstStart}/start`, { method: 'POST' });
+    toast(r.ok ? 'Assistant started' : r.error, r.ok); loadAssistants();
+  }));
+  $$('[data-asst-stop]').forEach(b => b.addEventListener('click', async () => {
+    await api(`/assistants/${b.dataset.asstStop}/stop`, { method: 'POST' }); toast('Stopped'); loadAssistants();
+  }));
+  $$('[data-asst-del]').forEach(b => b.addEventListener('click', async () => {
+    const purge = confirm('Also delete this assistant\'s brain (conversations & memory)? OK = purge, Cancel = keep data.');
+    await api(`/assistants/${b.dataset.asstDel}${purge ? '?purge=1' : ''}`, { method: 'DELETE' });
+    toast('Assistant deleted'); loadAssistants();
+  }));
+}
+$('#asst-add').addEventListener('click', () => {
+  $('#asst-name').value = ''; $('#asst-token').value = ''; $('#asst-owner').value = ''; $('#asst-prompt').value = '';
+  $('#asst-modal').style.display = 'flex';
+});
+$('#asst-modal-close').addEventListener('click', () => $('#asst-modal').style.display = 'none');
+$('#asst-save').addEventListener('click', async () => {
+  try {
+    await api('/assistants', { method: 'POST', body: {
+      name: $('#asst-name').value, bot_token: $('#asst-token').value.trim() || null,
+      owner_user_id: $('#asst-owner').value || null, system_prompt: $('#asst-prompt').value || null,
+    } });
+    toast('Assistant created');
+    $('#asst-modal').style.display = 'none';
+    loadAssistants();
+  } catch (e) { toast(e.message, false); }
+});
+
+// ---------- MODEL BROWSER ----------
+let browseModels = [];
+async function openModelBrowser() {
+  const provider = $('#primary-provider').value;
+  $('#models-title').textContent = `${provider} models`;
+  $('#models-list').innerHTML = '<div class="hint"><span class="spinner"></span> Loading live catalog…</div>';
+  $('#models-modal').style.display = 'flex';
+  try {
+    browseModels = await api('/models/' + provider);
+    renderModels('');
+  } catch (e) { $('#models-list').innerHTML = `<p class="hint" style="color:var(--red)">${esc(e.message)}</p>`; }
+}
+function renderModels(filter) {
+  const rows = browseModels.filter(m => !filter || m.id.toLowerCase().includes(filter.toLowerCase()));
+  $('#models-list').innerHTML = rows.length ? rows.slice(0, 300).map(m => `
+    <div class="model-row" data-model="${esc(m.id)}">
+      <div class="model-info">
+        <div class="model-id">${esc(m.id)} ${m.free ? '<span class="badge badge-green">free</span>' : ''} ${m.vision ? '<span class="badge badge-blue">vision</span>' : ''}</div>
+        ${m.context ? `<div class="hint">${(m.context/1000).toFixed(0)}K ctx${m.promptCost ? ` · $${m.promptCost.toFixed(2)}/$${(m.completionCost||0).toFixed(2)} per 1M` : ''}</div>` : ''}
+      </div>
+      <button class="btn btn-sm btn-primary" data-pick-model="${esc(m.id)}">Use</button>
+    </div>`).join('') : '<p class="hint">No models match.</p>';
+  $$('[data-pick-model]').forEach(b => b.addEventListener('click', () => {
+    const id = b.dataset.pickModel;
+    // Ensure the option exists then select it.
+    const sel = $('#primary-model');
+    if (![...sel.options].some(o => o.value === id)) sel.add(new Option(id, id));
+    sel.value = id;
+    $('#models-modal').style.display = 'none';
+    toast(`Selected ${id} — click Save routing to apply`);
+  }));
+}
+$('#browse-models').addEventListener('click', openModelBrowser);
+$('#models-close').addEventListener('click', () => $('#models-modal').style.display = 'none');
+$('#models-search').addEventListener('input', () => renderModels($('#models-search').value));
+
 // ---------- SYSTEM MONITORING ----------
 let sysTimer;
 function meterBar(label, pct, danger) {
@@ -1195,6 +1280,7 @@ const loaders = {
   tools: loadTools,
   library: loadLibrary,
   logs: loadLogs,
+  assistants: loadAssistants,
   system: loadSystem,
   security: loadSecurity,
   settings: loadSettings,

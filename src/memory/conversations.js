@@ -1,38 +1,40 @@
 'use strict';
 // Per-chat conversation history in SQLite, with auto-summarization.
+// All operations are scoped by assistant_id (0 = primary bot) so every
+// assistant keeps a fully separate brain.
 const db = require('../db/schema');
 const logger = require('../logger');
 const config = require('../config');
 
-function addMessage(chatId, role, content, tokens = 0) {
-  db.prepare('INSERT INTO conversations (chat_id, role, content, tokens) VALUES (?, ?, ?, ?)')
-    .run(chatId, role, content, tokens);
+function addMessage(chatId, role, content, tokens = 0, assistantId = 0) {
+  db.prepare('INSERT INTO conversations (chat_id, role, content, tokens, assistant_id) VALUES (?, ?, ?, ?, ?)')
+    .run(chatId, role, content, tokens, assistantId);
 }
 
-function getHistory(chatId, limit) {
+function getHistory(chatId, limit, assistantId = 0) {
   const n = limit || Number(config.getSetting('history_limit')) || 30;
   const rows = db.prepare(
-    'SELECT role, content FROM conversations WHERE chat_id = ? ORDER BY id DESC LIMIT ?'
-  ).all(chatId, n);
+    'SELECT role, content FROM conversations WHERE chat_id = ? AND assistant_id = ? ORDER BY id DESC LIMIT ?'
+  ).all(chatId, assistantId, n);
   return rows.reverse();
 }
 
-function countMessages(chatId) {
-  return db.prepare('SELECT COUNT(*) AS c FROM conversations WHERE chat_id = ?').get(chatId).c;
+function countMessages(chatId, assistantId = 0) {
+  return db.prepare('SELECT COUNT(*) AS c FROM conversations WHERE chat_id = ? AND assistant_id = ?').get(chatId, assistantId).c;
 }
 
-function clearHistory(chatId) {
-  db.prepare('DELETE FROM conversations WHERE chat_id = ?').run(chatId);
+function clearHistory(chatId, assistantId = 0) {
+  db.prepare('DELETE FROM conversations WHERE chat_id = ? AND assistant_id = ?').run(chatId, assistantId);
 }
 
 /**
  * When a conversation grows past the threshold, compress the oldest messages
  * into a single summary row so context stays bounded but nothing is lost.
  */
-async function maybeSummarize(chatId) {
+async function maybeSummarize(chatId, assistantId = 0) {
   const threshold = Number(config.getSetting('auto_summarize_threshold')) || 120;
   if (threshold <= 0) return;
-  const count = countMessages(chatId);
+  const count = countMessages(chatId, assistantId);
   if (count < threshold) return;
 
   const keep = Number(config.getSetting('history_limit')) || 30;
@@ -40,8 +42,8 @@ async function maybeSummarize(chatId) {
   // A negative LIMIT means "no limit" in SQLite and would swallow recent messages.
   if (excess < 10) return;
   const old = db.prepare(
-    'SELECT id, role, content FROM conversations WHERE chat_id = ? ORDER BY id ASC LIMIT ?'
-  ).all(chatId, excess);
+    'SELECT id, role, content FROM conversations WHERE chat_id = ? AND assistant_id = ? ORDER BY id ASC LIMIT ?'
+  ).all(chatId, assistantId, excess);
   if (old.length < 10) return;
 
   try {
@@ -56,11 +58,11 @@ async function maybeSummarize(chatId) {
       const del = db.prepare('DELETE FROM conversations WHERE id = ?');
       for (const m of old) del.run(m.id);
       db.prepare(
-        "INSERT INTO conversations (chat_id, role, content) VALUES (?, 'system', ?)"
-      ).run(chatId, `[Summary of earlier conversation] ${result.text}`);
+        "INSERT INTO conversations (chat_id, role, content, assistant_id) VALUES (?, 'system', ?, ?)"
+      ).run(chatId, `[Summary of earlier conversation] ${result.text}`, assistantId);
     });
     tx();
-    logger.info(`Summarized ${old.length} old messages for chat ${chatId}`);
+    logger.info(`Summarized ${old.length} old messages for chat ${chatId} (assistant ${assistantId})`);
   } catch (err) {
     logger.warn(`Auto-summarize failed for chat ${chatId}: ${err.message}`);
   }

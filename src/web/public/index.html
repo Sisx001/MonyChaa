@@ -90,6 +90,7 @@
       <button class="nav-btn" data-tab="tools"><svg class="ic"><use href="#i-wrench"/></svg><span>Tools</span></button>
       <button class="nav-btn" data-tab="logs"><svg class="ic"><use href="#i-list"/></svg><span>Logs</span></button>
       <div class="nav-group">System</div>
+      <button class="nav-btn" data-tab="assistants"><svg class="ic"><use href="#i-bot"/></svg><span>Assistants</span></button>
       <button class="nav-btn" data-tab="system"><svg class="ic"><use href="#i-activity"/></svg><span>Monitoring</span></button>
       <button class="nav-btn" data-tab="security"><svg class="ic"><use href="#i-shield"/></svg><span>Security</span></button>
       <button class="nav-btn" data-tab="settings"><svg class="ic"><use href="#i-sliders"/></svg><span>Settings</span></button>
@@ -256,6 +257,9 @@
           </label>
           <label>Primary model
             <select id="primary-model"></select>
+          </label>
+          <label>Browse live catalog
+            <button class="btn" id="browse-models" type="button"><svg class="ic ic-sm"><use href="#i-search"/></svg> Browse models</button>
           </label>
           <label>Load balancing
             <select id="load-balancing"><option value="off">Off</option><option value="on">On (round-robin healthy)</option></select>
@@ -466,6 +470,16 @@
         </div>
         <div class="table-scroll"><table class="table" id="logs-table"><thead></thead><tbody></tbody></table></div>
       </div>
+    </section>
+
+    <!-- ============ ASSISTANTS (multi-tenancy) ============ -->
+    <section id="tab-assistants" class="tab">
+      <div class="row-between">
+        <h1>Assistants</h1>
+        <button class="btn btn-primary" id="asst-add"><svg class="ic ic-sm"><use href="#i-plus"/></svg> New assistant</button>
+      </div>
+      <p class="hint">Run multiple bots side by side — each with its own bot token, owner, system prompt and fully isolated brain (separate conversations & memory). The <b>primary</b> bot uses the <code>.env</code> token. Add more here for teammates or separate personas.</p>
+      <div id="assistants-list" class="catalog-grid"></div>
     </section>
 
     <!-- ============ SYSTEM MONITORING ============ -->
@@ -758,6 +772,31 @@
       <textarea id="sk-content" rows="6" placeholder="When someone asks to meet…"></textarea>
     </label>
     <div class="btn-row"><button class="btn btn-primary" id="skill-save"><svg class="ic ic-sm"><use href="#i-save"/></svg> Save skill</button></div>
+  </div>
+</div>
+
+<!-- Assistant editor modal -->
+<div class="modal-backdrop" id="asst-modal" style="display:none">
+  <div class="modal" style="width:560px">
+    <div class="row-between"><h3 id="asst-modal-title">New assistant</h3><button class="btn btn-sm" id="asst-modal-close"><svg class="ic ic-sm"><use href="#i-x"/></svg></button></div>
+    <label class="full">Name <input id="asst-name" placeholder="Work Bot"></label>
+    <label class="full">Bot token (from @BotFather) <input id="asst-token" placeholder="123456:ABC…"></label>
+    <label class="full">Owner Telegram user id <input id="asst-owner" type="number" placeholder="6540382154"></label>
+    <label class="full">System prompt (this assistant's persona)
+      <textarea id="asst-prompt" rows="5" placeholder="You are…"></textarea>
+    </label>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="asst-save"><svg class="ic ic-sm"><use href="#i-save"/></svg> Save & start</button>
+    </div>
+  </div>
+</div>
+
+<!-- Model browser modal -->
+<div class="modal-backdrop" id="models-modal" style="display:none">
+  <div class="modal" style="width:680px">
+    <div class="row-between"><h3><svg class="ic ic-sm"><use href="#i-cpu"/></svg> <span id="models-title">Models</span></h3><button class="btn btn-sm" id="models-close"><svg class="ic ic-sm"><use href="#i-x"/></svg></button></div>
+    <input id="models-search" class="search-input" placeholder="Filter models…">
+    <div id="models-list" class="models-list"></div>
   </div>
 </div>
 
