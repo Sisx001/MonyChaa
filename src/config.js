@@ -134,6 +134,13 @@ const SETTING_DEFAULTS = {
   tool_max_output: '3000',
   stream_feed: 'on',            // live feed in the panel sidebar
   dashboard_refresh_s: '15',
+  active_character: '',         // preloaded persona id, empty = custom
+
+  // ---- Telegram behavior ----
+  reply_in_groups: 'off',       // reply in group chats the bot is added to
+  group_mention_only: 'on',     // in groups, only reply when @mentioned/replied-to
+  agent_name: '',               // name the bot answers to (for mentions)
+  offline_message: '',          // sent once when bot_enabled is off, if set
 };
 
 // API keys manageable from the admin panel (stored in DB, env is fallback).

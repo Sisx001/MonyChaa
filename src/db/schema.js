@@ -159,6 +159,57 @@ CREATE TABLE IF NOT EXISTS mcp_servers (
   last_connected TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS admin_users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT UNIQUE,
+  pass_hash TEXT,               -- scrypt: salt:hash
+  role TEXT DEFAULT 'admin',    -- owner | admin | viewer
+  enabled INTEGER DEFAULT 1,
+  totp_secret TEXT,             -- optional 2FA (base32)
+  created_at TEXT DEFAULT (datetime('now')),
+  last_login TEXT,
+  last_ip TEXT
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+  token TEXT PRIMARY KEY,
+  user_id INTEGER,
+  ip TEXT,
+  user_agent TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  expires_at TEXT,
+  last_seen TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS login_attempts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT,
+  ip TEXT,
+  country TEXT,
+  success INTEGER DEFAULT 0,
+  user_agent TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_login_ip ON login_attempts(ip, created_at);
+
+CREATE TABLE IF NOT EXISTS banned_ips (
+  ip TEXT PRIMARY KEY,
+  reason TEXT,
+  country TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS audit_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER,
+  username TEXT,
+  action TEXT,
+  detail TEXT,
+  ip TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at);
 `);
 
 // Additive migrations for existing databases.

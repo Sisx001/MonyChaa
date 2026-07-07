@@ -20,6 +20,7 @@ async function main() {
       allowed_updates: [
         'message', 'business_connection', 'business_message',
         'edited_business_message', 'deleted_business_messages',
+        'my_chat_member',
       ],
       onStart: (info) => logger.info(`Bot @${info.username} polling. Enable Business Mode in @BotFather, then connect it in Telegram Settings → Telegram Business → Chatbots.`),
     }).catch(err => logError('bot_start', err));

@@ -106,15 +106,16 @@ test('buildSystemPrompt resolves contact profile and template vars', () => {
   db.prepare('DELETE FROM contacts WHERE chat_id = 999').run();
 });
 
-test('auth: token roundtrip and password check', () => {
+test('auth: enabled() reflects presence of admin accounts', () => {
   const auth = require('../src/web/auth');
-  const token = auth.makeToken();
-  assert.ok(auth.verifyToken(token), 'valid token rejected');
-  assert.ok(!auth.verifyToken(token.slice(0, -2) + 'ff'), 'tampered token accepted');
-  assert.ok(!auth.verifyToken(''), 'empty token accepted');
-  assert.ok(!auth.verifyToken('admin.99999999999999.deadbeef'), 'forged token accepted');
-  // No ADMIN_PASSWORD in the test env → auth disabled.
-  assert.strictEqual(auth.enabled(), false);
+  const db = require('../src/db/schema');
+  const before = db.prepare('SELECT COUNT(*) c FROM admin_users').get().c;
+  if (before === 0) assert.strictEqual(auth.enabled(), false);
+  // Create an account → auth becomes enforced; then clean up.
+  db.prepare('INSERT INTO admin_users (username, pass_hash, role) VALUES (?, ?, ?)')
+    .run('t_authcheck', auth.hashPassword('password123'), 'admin');
+  assert.strictEqual(auth.enabled(), true);
+  db.prepare("DELETE FROM admin_users WHERE username = 't_authcheck'").run();
 });
 
 test('maybeSummarize never runs with a negative excess (SQLite LIMIT trap)', async () => {
@@ -167,6 +168,43 @@ test('mcp: tool registry empty by default, qualified name validation', async () 
   assert.deepStrictEqual(mcp.allTools(), []);
   await assert.rejects(() => mcp.callQualified('not-mcp-format', {}), /bad MCP tool name/);
   await assert.rejects(() => mcp.callQualified('mcp:ghost:tool', {}), /not found or disabled/);
+});
+
+test('auth: scrypt hashing verifies correctly and rejects wrong passwords', () => {
+  const auth = require('../src/web/auth');
+  const hash = auth.hashPassword('correct horse battery staple');
+  assert.ok(hash.includes(':'));
+  assert.ok(auth.verifyPassword('correct horse battery staple', hash));
+  assert.ok(!auth.verifyPassword('wrong password', hash));
+  assert.ok(!auth.verifyPassword('correct horse battery staple', 'malformed'));
+});
+
+test('system: metrics and diagnostics are well-formed', () => {
+  const sys = require('../src/system');
+  const m = sys.metrics();
+  assert.strictEqual(m.status, 'online');
+  assert.ok(m.cpu.cores > 0);
+  assert.ok(m.memory.systemUsedPct >= 0 && m.memory.systemUsedPct <= 100);
+  const diag = sys.diagnostics();
+  assert.ok(Array.isArray(diag) && diag.length > 0);
+  for (const d of diag) assert.ok(['ok', 'warn'].includes(d.status));
+});
+
+test('system: autofix actions run and reject unknown ones', () => {
+  const sys = require('../src/system');
+  assert.match(sys.autofix('clear_sessions'), /session/i);
+  assert.match(sys.autofix('reset_health'), /health/i);
+  assert.throws(() => sys.autofix('nonexistent'), /Unknown fix/);
+});
+
+test('characters: apply sets prompt and generation defaults', () => {
+  const characters = require('../src/characters');
+  assert.ok(characters.CHARACTERS.length >= 10);
+  characters.apply('minimal');
+  assert.strictEqual(config.getSetting('active_character'), 'minimal');
+  assert.strictEqual(config.getSetting('emoji_usage'), 'none');
+  assert.ok(config.getSetting('system_prompt').length > 20);
+  assert.throws(() => characters.apply('ghost'), /Unknown character/);
 });
 
 test('conversation history add/get/clear', () => {

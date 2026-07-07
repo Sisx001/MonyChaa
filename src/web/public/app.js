@@ -31,14 +31,16 @@ async function doLogin() {
   const res = await fetch('/api/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password: $('#login-password').value }),
+    body: JSON.stringify({ username: $('#login-username').value, password: $('#login-password').value }),
   });
+  const j = await res.json().catch(() => ({}));
   if (res.ok) {
     $('#login-overlay').style.display = 'none';
     $('#login-password').value = '';
     loadDashboard().catch(() => {});
+    loadTopbar().catch(() => {});
   } else {
-    $('#login-error').textContent = 'Wrong password';
+    $('#login-error').textContent = j.error || 'Sign-in failed';
   }
 }
 $('#login-btn').addEventListener('click', doLogin);
@@ -207,6 +209,7 @@ async function loadPrompt() {
   currentSettings = await api('/settings');
   $('#prompt-editor').value = currentSettings.system_prompt || '';
   for (const el of $$('[data-ctx-setting]')) el.value = currentSettings[el.dataset.ctxSetting] ?? '';
+  loadCharacters().catch(() => {});
   const presets = await api('/prompts/presets');
   $('#preset-row').innerHTML = Object.keys(presets).map(name =>
     `<button class="btn btn-sm ${currentSettings.active_preset === name ? 'btn-primary' : ''}" data-preset="${esc(name)}">${esc(name)}</button>`
@@ -925,6 +928,161 @@ $('#chat-clear').addEventListener('click', () => {
   renderChatThread();
 });
 
+// ---------- CHARACTERS (in prompt tab) ----------
+async function loadCharacters() {
+  const chars = await api('/characters');
+  const grid = $('#characters-grid');
+  if (!grid) return;
+  grid.innerHTML = chars.map(c => `
+    <div class="char-card ${c.active ? 'active' : ''}">
+      <div class="char-head"><svg class="ic"><use href="#i-masks"/></svg><b>${esc(c.name)}</b>${c.active ? '<span class="badge badge-green">active</span>' : ''}</div>
+      <div class="hint">${esc(c.tagline)}</div>
+      <button class="btn btn-sm ${c.active ? '' : 'btn-primary'}" data-char="${esc(c.id)}">${c.active ? 'Re-apply' : 'Apply'}</button>
+    </div>`).join('');
+  $$('[data-char]').forEach(b => b.addEventListener('click', async () => {
+    const r = await api('/characters/apply', { method: 'POST', body: { id: b.dataset.char } });
+    $('#prompt-editor').value = r.prompt;
+    toast(`Applied character: ${r.character}`);
+    loadCharacters();
+  }));
+}
+
+// ---------- SYSTEM MONITORING ----------
+let sysTimer;
+function meterBar(label, pct, danger) {
+  const color = pct > 90 ? 'var(--red)' : pct > 70 ? 'var(--yellow)' : 'var(--green)';
+  return `<div class="meter">
+    <div class="meter-top"><span>${esc(label)}</span><span>${pct}%</span></div>
+    <div class="meter-track"><div class="meter-fill" style="width:${Math.min(100, pct)}%;background:${color}"></div></div>
+  </div>`;
+}
+async function loadSystem() {
+  const { metrics: m, diagnostics: diag } = await api('/system');
+  const fmtUp = s => s > 86400 ? `${Math.floor(s/86400)}d ${Math.floor(s%86400/3600)}h` : s > 3600 ? `${Math.floor(s/3600)}h ${Math.floor(s%3600/60)}m` : `${Math.floor(s/60)}m`;
+  const okCount = diag.filter(d => d.status === 'ok').length;
+  const tiles = [
+    ['Status', 'Online', 'all systems'],
+    ['Health', `${okCount}/${diag.length}`, 'checks passing'],
+    ['Process uptime', fmtUp(m.uptimeSec), `pid ${m.pid}`],
+    ['CPU load', m.cpu.loadPct + '%', `${m.cpu.cores} cores`],
+    ['Memory', m.memory.systemUsedPct + '%', `${m.memory.rssMB}MB rss`],
+    ['Database', m.dbSizeMB + 'MB', m.disk ? `${m.disk.freeGB}GB disk free` : ''],
+  ];
+  $('#sys-stat-grid').innerHTML = tiles.map(([l, v, sub]) =>
+    `<div class="stat"><div class="label">${esc(l)}</div><div class="value">${esc(v)}</div>${sub ? `<div class="sub">${esc(sub)}</div>` : ''}</div>`).join('');
+
+  $('#sys-meters').innerHTML =
+    meterBar('CPU', m.cpu.loadPct) +
+    meterBar('System memory', m.memory.systemUsedPct) +
+    (m.disk ? meterBar('Disk', m.disk.usedPct) : '');
+
+  $('#sys-diagnostics').innerHTML = diag.map(d => `
+    <div class="diag-row">
+      <span class="diag-dot ${d.status}"></span>
+      <div class="diag-body"><b>${esc(d.name)}</b><div class="hint">${esc(d.detail)}</div></div>
+      ${d.fix ? `<button class="btn btn-sm" data-fix="${esc(d.fix)}">Fix</button>` : ''}
+    </div>`).join('');
+  $$('[data-fix]').forEach(b => b.addEventListener('click', async () => {
+    const r = await api('/system/autofix', { method: 'POST', body: { action: b.dataset.fix } });
+    toast(r.message);
+    loadSystem();
+  }));
+
+  $('#sys-env').innerHTML = [
+    ['Node', m.node], ['Platform', m.platform], ['Arch', m.arch], ['Hostname', m.hostname],
+    ['CPU', m.cpu.model], ['Host uptime', fmtUp(m.hostUptimeSec)], ['Total memory', m.memory.systemTotalGB + 'GB'],
+  ].map(([k, v]) => `<div class="kv"><span class="kv-k">${esc(k)}</span><span class="kv-v">${esc(v)}</span></div>`).join('');
+
+  clearTimeout(sysTimer);
+  sysTimer = setTimeout(() => { if ($('#tab-system').classList.contains('active')) loadSystem().catch(() => {}); }, 4000);
+}
+$('#sys-autofix').addEventListener('click', async () => {
+  const r = await api('/system/autofix', { method: 'POST', body: { action: 'fix_all' } });
+  toast(r.message);
+  loadSystem();
+});
+$('#sys-restart').addEventListener('click', async () => {
+  if (!confirm('Restart the bot process? It will reconnect in a few seconds if a process manager is running.')) return;
+  try { const r = await api('/system/restart', { method: 'POST' }); toast(r.message); } catch (e) { toast(e.message, false); }
+});
+
+// ---------- SECURITY ----------
+async function loadSecurity() {
+  const [users, sessions, attempts, bans, audit] = await Promise.all([
+    api('/users').catch(() => []), api('/security/sessions'), api('/security/attempts'),
+    api('/security/bans'), api('/security/audit'),
+  ]);
+
+  $('#users-table tbody').innerHTML = users.length ? users.map(u => `
+    <tr>
+      <td><b>${esc(u.username)}</b></td>
+      <td><span class="badge badge-${u.role === 'owner' ? 'blue' : u.role === 'viewer' ? 'gray' : 'green'}">${esc(u.role)}</span></td>
+      <td><span class="badge badge-${u.enabled ? 'green' : 'red'}">${u.enabled ? 'active' : 'disabled'}</span></td>
+      <td>${u.last_login ? fmtTime(u.last_login) : '—'}</td>
+      <td>${esc(u.last_ip || '—')}</td>
+      <td class="btn-row" style="margin:0">
+        <button class="btn btn-sm" data-user-edit="${u.id}">Edit</button>
+        <button class="btn btn-sm btn-danger" data-user-del="${u.id}"><svg class="ic ic-sm"><use href="#i-trash"/></svg></button>
+      </td>
+    </tr>`).join('') : '<tr><td colspan="6" class="hint">No accounts (auth disabled — set one to lock the panel).</td></tr>';
+  $$('[data-user-del]').forEach(b => b.addEventListener('click', async () => {
+    if (!confirm('Delete this account?')) return;
+    try { await api('/users/' + b.dataset.userDel, { method: 'DELETE' }); toast('User deleted'); loadSecurity(); }
+    catch (e) { toast(e.message, false); }
+  }));
+  $$('[data-user-edit]').forEach(b => b.addEventListener('click', () => openUser(users.find(u => u.id == b.dataset.userEdit))));
+
+  $('#sessions-table tbody').innerHTML = sessions.length ? sessions.map(s => `
+    <tr><td>${esc(s.username)} ${s.current ? '<span class="badge badge-blue">you</span>' : ''}</td><td>${esc(s.ip)}</td><td>${fmtTime(s.last_seen)}</td></tr>`).join('')
+    : '<tr><td colspan="3" class="hint">No active sessions</td></tr>';
+
+  $('#attempts-table tbody').innerHTML = attempts.length ? attempts.map(a => `
+    <tr>
+      <td>${fmtTime(a.created_at)}</td><td>${esc(a.username)}</td><td>${esc(a.ip)}</td>
+      <td><span class="badge badge-${a.success ? 'green' : 'red'}">${a.success ? 'success' : 'failed'}</span></td>
+      <td>${a.success ? '' : `<button class="btn btn-sm btn-danger" data-quickban="${esc(a.ip)}">Ban IP</button>`}</td>
+    </tr>`).join('') : '<tr><td colspan="5" class="hint">No login attempts</td></tr>';
+  $$('[data-quickban]').forEach(b => b.addEventListener('click', async () => {
+    await api('/security/bans', { method: 'POST', body: { ip: b.dataset.quickban, reason: 'failed logins' } });
+    toast('IP banned'); loadSecurity();
+  }));
+
+  $('#bans-table tbody').innerHTML = bans.length ? bans.map(b => `
+    <tr><td>${esc(b.ip)}</td><td>${esc(b.reason || '')}</td><td>${fmtTime(b.created_at)}</td>
+    <td><button class="btn btn-sm" data-unban="${esc(b.ip)}">Unban</button></td></tr>`).join('')
+    : '<tr><td colspan="4" class="hint">No banned IPs</td></tr>';
+  $$('[data-unban]').forEach(b => b.addEventListener('click', async () => {
+    await api('/security/bans/' + encodeURIComponent(b.dataset.unban), { method: 'DELETE' }); toast('Unbanned'); loadSecurity();
+  }));
+
+  $('#audit-table tbody').innerHTML = audit.length ? audit.map(a => `
+    <tr><td>${fmtTime(a.created_at)}</td><td>${esc(a.username || '—')}</td><td><span class="badge badge-blue">${esc(a.action)}</span></td><td>${esc(a.detail || '')}</td><td>${esc(a.ip || '')}</td></tr>`).join('')
+    : '<tr><td colspan="5" class="hint">No audit entries</td></tr>';
+}
+$('#ban-add').addEventListener('click', async () => {
+  if (!$('#ban-ip').value.trim()) return;
+  await api('/security/bans', { method: 'POST', body: { ip: $('#ban-ip').value.trim(), reason: $('#ban-reason').value } });
+  $('#ban-ip').value = ''; $('#ban-reason').value = '';
+  toast('IP banned'); loadSecurity();
+});
+$('#user-add').addEventListener('click', () => openUser(null));
+function openUser(u) {
+  const editing = Boolean(u);
+  const username = editing ? u.username : prompt('New username:');
+  if (username === null) return;
+  const password = prompt(editing ? `New password for ${username} (blank = keep):` : 'Password (min 8 chars):');
+  if (password === null) return;
+  const role = prompt('Role: owner / admin / viewer', editing ? u.role : 'admin');
+  if (role === null) return;
+  (async () => {
+    try {
+      if (editing) await api('/users/' + u.id, { method: 'PUT', body: { password: password || undefined, role } });
+      else await api('/users', { method: 'POST', body: { username, password, role } });
+      toast('Account saved'); loadSecurity();
+    } catch (e) { toast(e.message, false); }
+  })();
+}
+
 // ---------- LOGS ----------
 let currentLog = 'messages';
 $$('.subtab').forEach(b => b.addEventListener('click', () => {
@@ -1037,6 +1195,8 @@ const loaders = {
   tools: loadTools,
   library: loadLibrary,
   logs: loadLogs,
+  system: loadSystem,
+  security: loadSecurity,
   settings: loadSettings,
 };
 loadDashboard().catch(err => toast(err.message, false));

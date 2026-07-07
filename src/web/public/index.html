@@ -56,6 +56,14 @@
     <symbol id="i-power" viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></symbol>
     <symbol id="i-hash" viewBox="0 0 24 24"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></symbol>
     <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></symbol>
+    <symbol id="i-activity" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></symbol>
+    <symbol id="i-masks" viewBox="0 0 24 24"><path d="M3 5h7v6a3.5 3.5 0 0 1-7 0z"/><path d="M14 5h7v6a3.5 3.5 0 0 1-7 0z"/><path d="M3 13c1 3 3 4 3.5 4M21 13c-1 3-3 4-3.5 4"/></symbol>
+    <symbol id="i-user-plus" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></symbol>
+    <symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></symbol>
+    <symbol id="i-heart-pulse" viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/><polyline points="3.5 12 8 12 10 9 13 15 15 12 20 12"/></symbol>
+    <symbol id="i-tg" viewBox="0 0 24 24"><path d="M21 4 3 11l5 2 2 6 3-4 5 4z"/></symbol>
   </defs>
 </svg>
 
@@ -81,6 +89,9 @@
       <button class="nav-btn" data-tab="contacts"><svg class="ic"><use href="#i-users"/></svg><span>Contacts</span></button>
       <button class="nav-btn" data-tab="tools"><svg class="ic"><use href="#i-wrench"/></svg><span>Tools</span></button>
       <button class="nav-btn" data-tab="logs"><svg class="ic"><use href="#i-list"/></svg><span>Logs</span></button>
+      <div class="nav-group">System</div>
+      <button class="nav-btn" data-tab="system"><svg class="ic"><use href="#i-activity"/></svg><span>Monitoring</span></button>
+      <button class="nav-btn" data-tab="security"><svg class="ic"><use href="#i-shield"/></svg><span>Security</span></button>
       <button class="nav-btn" data-tab="settings"><svg class="ic"><use href="#i-sliders"/></svg><span>Settings</span></button>
     </nav>
     <div class="sidebar-footer">
@@ -179,6 +190,11 @@
     <!-- ============ SYSTEM PROMPT ============ -->
     <section id="tab-prompt" class="tab">
       <h1>System Prompt</h1>
+      <div class="card">
+        <h3><svg class="ic ic-sm"><use href="#i-masks"/></svg> Preloaded characters — one click</h3>
+        <p class="hint">Apply a complete persona (prompt + emoji + style + temperature). Your current prompt is backed up as a version first.</p>
+        <div class="catalog-grid" id="characters-grid"></div>
+      </div>
       <div class="card">
         <div class="row-between">
           <h3>Core persona</h3>
@@ -452,6 +468,77 @@
       </div>
     </section>
 
+    <!-- ============ SYSTEM MONITORING ============ -->
+    <section id="tab-system" class="tab">
+      <div class="row-between">
+        <h1>System Monitoring</h1>
+        <div class="btn-row">
+          <button class="btn" id="sys-autofix"><svg class="ic ic-sm"><use href="#i-heart-pulse"/></svg> Auto-fix all</button>
+          <button class="btn btn-danger" id="sys-restart"><svg class="ic ic-sm"><use href="#i-power"/></svg> Restart</button>
+        </div>
+      </div>
+      <div class="stat-grid" id="sys-stat-grid"></div>
+      <div class="grid-2">
+        <div class="card">
+          <h3><svg class="ic ic-sm"><use href="#i-cpu"/></svg> Resource usage</h3>
+          <div id="sys-meters"></div>
+        </div>
+        <div class="card">
+          <h3><svg class="ic ic-sm"><use href="#i-heart-pulse"/></svg> Health diagnostics</h3>
+          <div id="sys-diagnostics"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3><svg class="ic ic-sm"><use href="#i-terminal"/></svg> Environment</h3>
+        <div id="sys-env" class="kv-grid"></div>
+      </div>
+    </section>
+
+    <!-- ============ SECURITY ============ -->
+    <section id="tab-security" class="tab">
+      <h1>Security</h1>
+      <div class="card">
+        <div class="row-between">
+          <h3><svg class="ic ic-sm"><use href="#i-users"/></svg> Admin accounts</h3>
+          <button class="btn btn-primary" id="user-add"><svg class="ic ic-sm"><use href="#i-user-plus"/></svg> Add user</button>
+        </div>
+        <p class="hint">Roles: <b>owner</b> (full control), <b>admin</b> (manage everything except deleting accounts), <b>viewer</b> (read-only).</p>
+        <table class="table" id="users-table">
+          <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Last login</th><th>Last IP</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <h3><svg class="ic ic-sm"><use href="#i-lock"/></svg> Active sessions</h3>
+          <table class="table" id="sessions-table">
+            <thead><tr><th>User</th><th>IP</th><th>Last seen</th></tr></thead><tbody></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <h3><svg class="ic ic-sm"><use href="#i-ban"/></svg> Banned IPs</h3>
+          <div class="input-row">
+            <input id="ban-ip" placeholder="IP address" style="max-width:180px">
+            <input id="ban-reason" placeholder="reason (optional)">
+            <button class="btn btn-danger" id="ban-add"><svg class="ic ic-sm"><use href="#i-ban"/></svg> Ban</button>
+          </div>
+          <table class="table" id="bans-table"><thead><tr><th>IP</th><th>Reason</th><th>When</th><th></th></tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+      <div class="card">
+        <h3><svg class="ic ic-sm"><use href="#i-shield"/></svg> Login attempts</h3>
+        <table class="table" id="attempts-table">
+          <thead><tr><th>Time</th><th>User</th><th>IP</th><th>Result</th><th></th></tr></thead><tbody></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3><svg class="ic ic-sm"><use href="#i-list"/></svg> Audit log</h3>
+        <table class="table" id="audit-table">
+          <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Detail</th><th>IP</th></tr></thead><tbody></tbody>
+        </table>
+      </div>
+    </section>
+
     <!-- ============ SETTINGS ============ -->
     <section id="tab-settings" class="tab">
       <h1>Settings</h1>
@@ -527,6 +614,16 @@
         <div class="form-grid">
           <label>Footer enabled <select data-setting="footer_enabled"><option value="off">Off</option><option value="on">On</option></select></label>
           <label>Footer text (appended to every reply) <input data-setting="message_footer" placeholder="— sent by my assistant"></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3><svg class="ic ic-sm"><use href="#i-tg"/></svg> Telegram behavior</h3>
+        <div class="form-grid">
+          <label>Agent name (bot answers to this in groups) <input data-setting="agent_name" placeholder="Alex"></label>
+          <label>Reply in group chats <select data-setting="reply_in_groups"><option value="off">Off</option><option value="on">On</option></select></label>
+          <label>In groups, reply only when mentioned <select data-setting="group_mention_only"><option value="on">On</option><option value="off">Off (reply to all)</option></select></label>
+          <label>Offline message (sent once when auto-reply is off) <input data-setting="offline_message" placeholder="(empty = stay silent)"></label>
         </div>
       </div>
 
@@ -669,9 +766,10 @@
   <div class="modal" style="width:380px;text-align:center">
     <div class="login-icon"><svg class="ic ic-xl"><use href="#i-lock"/></svg></div>
     <h3>Secretary Pro</h3>
-    <p class="hint">Enter the admin password to continue.</p>
-    <input type="password" id="login-password" placeholder="Password" style="margin:10px 0">
-    <button class="btn btn-primary btn-lg" id="login-btn" style="width:100%">Unlock</button>
+    <p class="hint">Sign in to continue.</p>
+    <input type="text" id="login-username" placeholder="Username" autocomplete="username" style="margin:10px 0 8px" value="admin">
+    <input type="password" id="login-password" placeholder="Password" autocomplete="current-password" style="margin-bottom:10px">
+    <button class="btn btn-primary btn-lg" id="login-btn" style="width:100%">Sign in</button>
     <p class="hint" id="login-error" style="color:var(--red);margin-top:8px"></p>
   </div>
 </div>

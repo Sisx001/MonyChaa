@@ -362,6 +362,102 @@ router.get('/logs/tokens', wrap((req, res) => {
   res.json(db.prepare('SELECT * FROM token_usage ORDER BY id DESC LIMIT 100').all());
 }));
 
+// ---------- System monitoring ----------
+const systemMon = require('../system');
+const auth = require('./auth');
+
+router.get('/system', wrap((req, res) => {
+  res.json({ metrics: systemMon.metrics(), diagnostics: systemMon.diagnostics() });
+}));
+router.post('/system/autofix', wrap((req, res) => {
+  const msg = systemMon.autofix(req.body.action || 'fix_all');
+  auth.audit(req, 'autofix', req.body.action, req.user);
+  res.json({ ok: true, message: msg });
+}));
+router.post('/system/restart', wrap((req, res) => {
+  if (req.user && req.user.role === 'viewer') return res.status(403).json({ error: 'read-only' });
+  auth.audit(req, 'restart', null, req.user);
+  res.json({ ok: true, message: systemMon.restart('panel') });
+}));
+
+// ---------- Characters ----------
+const characters = require('../characters');
+router.get('/characters', wrap((req, res) => res.json(characters.list())));
+router.post('/characters/apply', wrap((req, res) => {
+  const c = characters.apply(req.body.id);
+  auth.audit(req, 'apply_character', c.name, req.user);
+  res.json({ ok: true, character: c.name, prompt: c.prompt });
+}));
+
+// ---------- Admin users ----------
+router.get('/users', wrap((req, res) => {
+  if (req.user && req.user.role === 'viewer') return res.status(403).json({ error: 'read-only' });
+  res.json(db.prepare('SELECT id, username, role, enabled, created_at, last_login, last_ip FROM admin_users ORDER BY id').all());
+}));
+router.post('/users', wrap((req, res) => {
+  if (req.user && !['owner', 'admin'].includes(req.user.role)) return res.status(403).json({ error: 'forbidden' });
+  const { username, password, role } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'username and password required' });
+  if (password.length < 8) return res.status(400).json({ error: 'password must be at least 8 characters' });
+  if (!/^[\w.-]{3,32}$/.test(username)) return res.status(400).json({ error: 'invalid username' });
+  try {
+    db.prepare('INSERT INTO admin_users (username, pass_hash, role) VALUES (?, ?, ?)')
+      .run(username, auth.hashPassword(password), ['owner', 'admin', 'viewer'].includes(role) ? role : 'admin');
+  } catch { return res.status(409).json({ error: 'username already exists' }); }
+  auth.audit(req, 'create_user', username, req.user);
+  res.json({ ok: true });
+}));
+router.put('/users/:id', wrap((req, res) => {
+  if (req.user && !['owner', 'admin'].includes(req.user.role)) return res.status(403).json({ error: 'forbidden' });
+  const { password, role, enabled } = req.body;
+  const target = db.prepare('SELECT * FROM admin_users WHERE id = ?').get(req.params.id);
+  if (!target) return res.status(404).json({ error: 'not found' });
+  if (password) db.prepare('UPDATE admin_users SET pass_hash = ? WHERE id = ?').run(auth.hashPassword(password), target.id);
+  if (role && ['owner', 'admin', 'viewer'].includes(role)) db.prepare('UPDATE admin_users SET role = ? WHERE id = ?').run(role, target.id);
+  if (enabled !== undefined) db.prepare('UPDATE admin_users SET enabled = ? WHERE id = ?').run(Number(enabled), target.id);
+  auth.audit(req, 'update_user', target.username, req.user);
+  res.json({ ok: true });
+}));
+router.delete('/users/:id', wrap((req, res) => {
+  if (req.user && req.user.role !== 'owner') return res.status(403).json({ error: 'only the owner can delete accounts' });
+  const total = db.prepare('SELECT COUNT(*) c FROM admin_users').get().c;
+  if (total <= 1) return res.status(400).json({ error: 'cannot delete the last account' });
+  const target = db.prepare('SELECT username FROM admin_users WHERE id = ?').get(req.params.id);
+  db.prepare('DELETE FROM admin_users WHERE id = ?').run(req.params.id);
+  db.prepare('DELETE FROM sessions WHERE user_id = ?').run(req.params.id);
+  auth.audit(req, 'delete_user', target?.username, req.user);
+  res.json({ ok: true });
+}));
+
+// ---------- Security: login attempts, sessions, IP bans, audit ----------
+router.get('/security/attempts', wrap((req, res) => {
+  res.json(db.prepare('SELECT * FROM login_attempts ORDER BY id DESC LIMIT 100').all());
+}));
+router.get('/security/sessions', wrap((req, res) => {
+  res.json(db.prepare(`SELECT s.token, u.username, s.ip, s.user_agent, s.created_at, s.last_seen, s.expires_at
+    FROM sessions s JOIN admin_users u ON u.id = s.user_id WHERE s.expires_at > datetime('now') ORDER BY s.last_seen DESC`).all()
+    .map(s => ({ ...s, token: s.token.slice(0, 8) + '…', current: req.user && s.token.startsWith(req.user.token?.slice(0, 8) || '\0') })));
+}));
+router.get('/security/audit', wrap((req, res) => {
+  res.json(db.prepare('SELECT * FROM audit_log ORDER BY id DESC LIMIT 150').all());
+}));
+router.get('/security/bans', wrap((req, res) => {
+  res.json(db.prepare('SELECT * FROM banned_ips ORDER BY created_at DESC').all());
+}));
+router.post('/security/bans', wrap((req, res) => {
+  const ip = String(req.body.ip || '').trim();
+  if (!ip) return res.status(400).json({ error: 'ip required' });
+  db.prepare('INSERT OR REPLACE INTO banned_ips (ip, reason) VALUES (?, ?)').run(ip, req.body.reason || 'manual');
+  db.prepare('DELETE FROM sessions WHERE ip = ?').run(ip); // kick active sessions from that IP
+  auth.audit(req, 'ban_ip', ip, req.user);
+  res.json({ ok: true });
+}));
+router.delete('/security/bans/:ip', wrap((req, res) => {
+  db.prepare('DELETE FROM banned_ips WHERE ip = ?').run(req.params.ip);
+  auth.audit(req, 'unban_ip', req.params.ip, req.user);
+  res.json({ ok: true });
+}));
+
 // ---------- Skills ----------
 const skills = require('../skills');
 

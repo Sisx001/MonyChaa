@@ -147,9 +147,20 @@ async function handleBusinessMessage(ctx) {
       logMsg(chatId, 'incoming', text);
       await checkKeywordTriggers(chatId, name, text);
 
-      // Master switch: record everything, reply to nothing.
+      // Master switch: record everything, reply to nothing (optional one-time notice).
       if (config.getSetting('bot_enabled') !== 'on') {
         require('../memory/conversations').addMessage(chatId, 'user', text);
+        const offline = config.getSetting('offline_message');
+        if (offline) {
+          const last = db.prepare(
+            "SELECT created_at FROM messages_log WHERE chat_id = ? AND direction = 'outgoing' AND content = ? ORDER BY id DESC LIMIT 1"
+          ).get(chatId, offline);
+          const recently = last && (Date.now() - new Date(last.created_at + 'Z').getTime()) < 6 * 3600000;
+          if (!recently) {
+            await ctx.api.sendMessage(chatId, offline, { business_connection_id: connId }).catch(() => {});
+            logMsg(chatId, 'outgoing', offline, { model: 'offline' });
+          }
+        }
         return;
       }
 
@@ -261,6 +272,33 @@ function createBot() {
   });
 
   bot.on('business_message', handleBusinessMessage);
+
+  // Group chats where the bot is a member (separate from Business Mode DMs).
+  bot.on('message', async (ctx, next) => {
+    const msg = ctx.message;
+    if (!msg || (msg.chat.type !== 'group' && msg.chat.type !== 'supergroup')) return next();
+    if (config.getSetting('reply_in_groups') !== 'on') return;
+    if (config.getSetting('bot_enabled') !== 'on') return;
+    const text = msg.text || msg.caption || '';
+    if (!text) return;
+    // Mention-only gate: reply only when @mentioned, replied-to, or the agent name is used.
+    const agentName = config.getSetting('agent_name').toLowerCase();
+    const me = (await bot.api.getMe().catch(() => null))?.username?.toLowerCase();
+    const mentioned = (me && text.toLowerCase().includes('@' + me))
+      || (agentName && text.toLowerCase().includes(agentName))
+      || msg.reply_to_message?.from?.id === ctx.me?.id;
+    if (config.getSetting('group_mention_only') === 'on' && !mentioned) return;
+    try {
+      const reply = await generateReply(msg.chat.id, text, {});
+      if (!reply) return;
+      await sleep(reply.plan.thinkMs);
+      for (const burst of reply.bursts) {
+        await ctx.reply(burst, { reply_parameters: { message_id: msg.message_id } });
+      }
+    } catch (err) {
+      logError('group_message', err);
+    }
+  });
 
   // Keep conversational context accurate when the other side edits or deletes.
   bot.on('edited_business_message', (ctx) => {
