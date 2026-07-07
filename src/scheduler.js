@@ -39,6 +39,20 @@ function start() {
     }
   });
 
+  // Every 30 minutes: active-chain provider health checks (opt-in — uses tokens).
+  cron.schedule('*/30 * * * *', async () => {
+    if (config.getSetting('health_checks') !== 'on') return;
+    const { candidates } = require('./llm/fallback');
+    const { chatOnce } = require('./llm/gateway');
+    for (const { provider, model } of candidates().slice(0, 4)) {
+      try {
+        await chatOnce(provider, model, [{ role: 'user', content: 'Reply: ok' }], { maxTokens: 5, temperature: 0 });
+      } catch (err) {
+        logger.warn(`Health check failed for ${provider}/${model}: ${err.message}`);
+      }
+    }
+  });
+
   // Every 5 minutes: cost spike alert.
   cron.schedule('*/5 * * * *', async () => {
     const threshold = Number(config.getSetting('cost_alert_threshold')) || 0;
@@ -57,7 +71,10 @@ function start() {
     if (config.getSetting('daily_summary') !== 'on') return;
     const tz = config.getSetting('timezone') || 'UTC';
     const now = new Date().toLocaleTimeString('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit' });
-    if (now !== (config.getSetting('daily_summary_time') || '21:00')) return;
+    // Normalize user input like "9:5" to "09:05" so the comparison can match.
+    const configured = (config.getSetting('daily_summary_time') || '21:00')
+      .split(':').map(p => p.padStart(2, '0')).join(':');
+    if (now !== configured) return;
     const { dailySummaryText } = require('./analytics');
     await notifyOwner(dailySummaryText());
   });

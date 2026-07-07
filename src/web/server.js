@@ -6,6 +6,7 @@ const logger = require('../logger');
 const { env } = require('../config');
 const routes = require('./routes');
 const events = require('./events');
+const auth = require('./auth');
 
 function createServer() {
   const app = express();
@@ -15,6 +16,12 @@ function createServer() {
   app.get('/health', (req, res) => {
     res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
   });
+
+  app.use(auth.middleware);
+  app.post('/api/login', auth.loginHandler);
+  app.post('/api/logout', auth.logoutHandler);
+  app.get('/api/auth-status', auth.statusHandler);
+  if (auth.enabled()) logger.info('Panel authentication enabled (ADMIN_PASSWORD set)');
 
   app.get('/api/events', events.handler);
   app.use('/api', routes);

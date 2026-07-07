@@ -12,10 +12,37 @@ async function api(path, options = {}) {
     ...options,
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
+  if (res.status === 401 && path !== '/login') {
+    showLogin();
+    throw new Error('authentication required');
+  }
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
   return json;
 }
+
+// ---------- auth ----------
+function showLogin() {
+  $('#login-overlay').style.display = 'flex';
+  $('#login-password').focus();
+}
+async function doLogin() {
+  $('#login-error').textContent = '';
+  const res = await fetch('/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: $('#login-password').value }),
+  });
+  if (res.ok) {
+    $('#login-overlay').style.display = 'none';
+    $('#login-password').value = '';
+    loadDashboard().catch(() => {});
+  } else {
+    $('#login-error').textContent = 'Wrong password';
+  }
+}
+$('#login-btn').addEventListener('click', doLogin);
+$('#login-password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 
 let toastTimer;
 function toast(msg, ok = true) {
@@ -116,6 +143,16 @@ async function loadDashboard() {
     },
     options: { plugins: { legend: { position: 'right', labels: { color: '#8a9aa9', boxWidth: 12 } } } },
   });
+
+  // Per-provider usage table
+  $('#usage-table tbody').innerHTML = s.perProvider.length ? s.perProvider.map(p => `
+    <tr>
+      <td>${esc(p.provider)}</td>
+      <td>${(p.tokens_today || 0).toLocaleString()}</td>
+      <td>$${(p.cost_today || 0).toFixed(4)}</td>
+      <td>${((p.tokens_in || 0) + (p.tokens_out || 0)).toLocaleString()}</td>
+      <td>$${(p.cost || 0).toFixed(4)}</td>
+    </tr>`).join('') : '<tr><td colspan="5" class="hint">No usage yet</td></tr>';
 
   // Health table
   $('#health-table tbody').innerHTML = s.health.length ? s.health.map(h => `

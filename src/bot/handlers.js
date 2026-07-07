@@ -239,6 +239,23 @@ function createBot() {
 
   bot.on('business_message', handleBusinessMessage);
 
+  // Keep conversational context accurate when the other side edits or deletes.
+  bot.on('edited_business_message', (ctx) => {
+    const msg = ctx.editedBusinessMessage;
+    if (!msg || !msg.from || msg.from.id === env.OWNER_USER_ID || !msg.text) return;
+    const conversations = require('../memory/conversations');
+    conversations.addMessage(msg.chat.id, 'user', `[edited their earlier message to] ${msg.text}`);
+    db.prepare('INSERT INTO events_log (type, detail) VALUES (?, ?)')
+      .run('message_edited', `chat ${msg.chat.id}: ${msg.text.slice(0, 120)}`);
+  });
+
+  bot.on('deleted_business_messages', (ctx) => {
+    const del = ctx.deletedBusinessMessages;
+    if (!del) return;
+    db.prepare('INSERT INTO events_log (type, detail) VALUES (?, ?)')
+      .run('messages_deleted', `chat ${del.chat?.id}: ${del.message_ids?.length || 0} message(s) deleted`);
+  });
+
   // Direct DM to the bot itself: owner commands.
   bot.command('start', ctx => ctx.reply(
     'Secretary Pro is running.\n\n' +
@@ -256,6 +273,25 @@ function createBot() {
     config.setSetting('away_mode', next);
     ctx.reply(`Away mode: ${next}`);
   });
+  bot.command('summary', async (ctx) => {
+    if (ctx.from?.id !== env.OWNER_USER_ID) return;
+    const { dailySummaryText } = require('../analytics');
+    ctx.reply(dailySummaryText());
+  });
+  bot.command('help', (ctx) => ctx.reply(
+    'Commands:\n' +
+    '/status — bot status & today\'s stats\n' +
+    '/away — toggle away mode\n' +
+    '/summary — send the daily summary now\n' +
+    `Admin panel: http://localhost:${env.PORT}`
+  ));
+
+  bot.api.setMyCommands([
+    { command: 'status', description: 'Bot status & stats' },
+    { command: 'away', description: 'Toggle away mode' },
+    { command: 'summary', description: 'Daily summary now' },
+    { command: 'help', description: 'Show commands' },
+  ]).catch(err => logger.warn(`setMyCommands failed: ${err.message}`));
 
   bot.catch((err) => logError('bot', err.error || err));
   return bot;

@@ -47,6 +47,13 @@
           <canvas id="chart-cost" height="180"></canvas>
         </div>
       </div>
+      <div class="card">
+        <h3>Token usage & cost per provider</h3>
+        <table class="table" id="usage-table">
+          <thead><tr><th>Provider</th><th>Tokens today</th><th>Cost today</th><th>Tokens total</th><th>Cost total</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
       <div class="grid-2">
         <div class="card">
           <h3>Provider health</h3>
@@ -287,6 +294,7 @@
           <input id="log-chat" placeholder="chat_id" style="max-width:140px">
           <select id="log-status"><option value="">Any status</option><option value="ok">ok</option><option value="error">error</option></select>
           <button class="btn" id="log-refresh">Refresh</button>
+          <a class="btn" href="/api/logs/messages.csv" download>⬇ CSV</a>
         </div>
         <div class="table-scroll"><table class="table" id="logs-table"><thead></thead><tbody></tbody></table></div>
       </div>
@@ -355,6 +363,7 @@
         <div class="form-grid">
           <label>Rate limit alerts <select data-setting="rate_limit_alerts"><option value="on">On</option><option value="off">Off</option></select></label>
           <label>Auto-archive inactive chats after (days, 0 = off) <input type="number" data-setting="auto_archive_days"></label>
+          <label>Periodic provider health checks (spends a few tokens/30min) <select data-setting="health_checks"><option value="off">Off</option><option value="on">On</option></select></label>
         </div>
       </div>
       <div class="card">
@@ -416,6 +425,18 @@
       <button class="btn btn-danger" id="contact-delete">🗑 Delete</button>
     </div>
     <div id="c-history-view" class="test-chat" style="display:none"></div>
+  </div>
+</div>
+
+<!-- Login overlay (shown when ADMIN_PASSWORD is set and not authenticated) -->
+<div class="modal-backdrop" id="login-overlay" style="display:none">
+  <div class="modal" style="width:380px;text-align:center">
+    <div style="font-size:40px;margin-bottom:8px">🔒</div>
+    <h3>Secretary Pro</h3>
+    <p class="hint">Enter the admin password to continue.</p>
+    <input type="password" id="login-password" placeholder="Password" style="margin:10px 0">
+    <button class="btn btn-primary btn-lg" id="login-btn" style="width:100%">Unlock</button>
+    <p class="hint" id="login-error" style="color:var(--red);margin-top:8px"></p>
   </div>
 </div>
 

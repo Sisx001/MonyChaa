@@ -91,6 +91,8 @@ const SETTING_DEFAULTS = {
   // Auto-archive: summarize + clear conversations inactive for N days (0 = off).
   auto_archive_days: '0',
   rate_limit_alerts: 'on',
+  // Periodic provider health checks (each check spends a few tokens).
+  health_checks: 'off',
 };
 
 // API keys manageable from the admin panel (stored in DB, env is fallback).

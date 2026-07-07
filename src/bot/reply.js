@@ -47,15 +47,23 @@ function parseJsonArray(text) {
 function buildSystemPrompt(contact, extraContext) {
   const tz = config.getSetting('timezone') || 'UTC';
   const now = new Date();
+  const template = contact?.custom_prompt || config.getSetting('system_prompt');
   const vars = {
     name: contact?.name || contact?.username || 'them',
     time: now.toLocaleTimeString('en-US', { timeZone: tz, hour: '2-digit', minute: '2-digit' }),
     date: now.toLocaleDateString('en-US', { timeZone: tz, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
     facts: facts.forPrompt(),
     contact_notes: contact?.notes || '',
+    chat_history: '',
   };
+  // {chat_history} is filled only when the template asks for it — history is
+  // normally passed as proper chat turns, not prompt text.
+  if (contact && template.includes('{chat_history}')) {
+    vars.chat_history = conversations.getHistory(contact.chat_id, 10)
+      .map(m => `${m.role === 'assistant' ? 'Me' : 'Them'}: ${m.content}`).join('\n');
+  }
 
-  let prompt = fillTemplate(contact?.custom_prompt || config.getSetting('system_prompt'), vars);
+  let prompt = fillTemplate(template, vars);
 
   prompt += `\n\nCurrent date/time: ${vars.date}, ${vars.time} (${tz}).`;
   if (vars.facts) prompt += `\n\nThings I know (use naturally, never dump):\n${vars.facts}`;

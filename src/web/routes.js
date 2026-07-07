@@ -297,6 +297,21 @@ router.get('/logs/messages', wrap((req, res) => {
   res.json(db.prepare(sql).all(...params));
 }));
 
+router.get('/logs/messages.csv', wrap((req, res) => {
+  const rows = db.prepare(`
+    SELECT m.created_at, m.chat_id, COALESCE(c.name, c.username, '') contact, m.direction,
+           m.content, m.model, m.tokens_used, m.response_time_ms, m.status, m.error
+    FROM messages_log m LEFT JOIN contacts c ON c.chat_id = m.chat_id
+    ORDER BY m.id DESC LIMIT 10000`).all();
+  const escCsv = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const header = 'created_at,chat_id,contact,direction,content,model,tokens_used,response_time_ms,status,error';
+  const body = rows.map(r => [r.created_at, r.chat_id, r.contact, r.direction, r.content,
+    r.model, r.tokens_used, r.response_time_ms, r.status, r.error].map(escCsv).join(',')).join('\n');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename=messages-log.csv');
+  res.send(header + '\n' + body);
+}));
+
 router.get('/logs/errors', wrap((req, res) => {
   res.json(db.prepare('SELECT * FROM error_log ORDER BY id DESC LIMIT 100').all());
 }));

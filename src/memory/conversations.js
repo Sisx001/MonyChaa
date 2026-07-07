@@ -36,9 +36,12 @@ async function maybeSummarize(chatId) {
   if (count < threshold) return;
 
   const keep = Number(config.getSetting('history_limit')) || 30;
+  const excess = count - keep;
+  // A negative LIMIT means "no limit" in SQLite and would swallow recent messages.
+  if (excess < 10) return;
   const old = db.prepare(
     'SELECT id, role, content FROM conversations WHERE chat_id = ? ORDER BY id ASC LIMIT ?'
-  ).all(chatId, count - keep);
+  ).all(chatId, excess);
   if (old.length < 10) return;
 
   try {

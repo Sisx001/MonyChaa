@@ -55,7 +55,7 @@ async function gmailSend(to, subject, body) {
   ).toString('base64url');
   await getJson('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${await googleToken()}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ raw }),
   });
   return `Email sent to ${to}`;
