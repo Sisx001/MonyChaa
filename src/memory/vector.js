@@ -25,8 +25,10 @@ async function remember(chatId, content, priority = 'casual') {
  * Semantic recall. With memory_isolation=on only this chat's memories are searched;
  * off shares memories across all contacts.
  */
-async function recall(chatId, query, limit = 5) {
+async function recall(chatId, query, limit) {
   if (config.getSetting('vector_memory') !== 'on') return [];
+  limit = limit || Number(config.getSetting('recall_count')) || 5;
+  const threshold = Number(config.getSetting('similarity_threshold')) || 0.45;
   const isolated = config.getSetting('memory_isolation') === 'on';
   const rows = isolated
     ? db.prepare('SELECT * FROM memories WHERE chat_id = ?').all(chatId)
@@ -46,7 +48,7 @@ async function recall(chatId, query, limit = 5) {
   return rows
     .filter(r => r.embedding)
     .map(r => ({ ...r, score: cosine(qvec, JSON.parse(r.embedding)) }))
-    .filter(r => r.score > 0.45)
+    .filter(r => r.score > threshold)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 }

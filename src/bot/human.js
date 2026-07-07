@@ -50,12 +50,14 @@ function delayPlan(incoming, reply, { delayMultiplier = 1, momentum = 0, priorit
  * Keeps paragraphs together; only splits when there are natural breaks.
  */
 function splitBursts(text) {
+  if (config.getSetting('double_text') !== 'on') return [String(text).trim()];
+  const maxBursts = Math.max(1, Number(config.getSetting('max_bursts')) || 3);
   const parts = String(text).split(/\n\n+/).map(s => s.trim()).filter(Boolean);
-  if (parts.length <= 1 || text.length < 240) return [text.trim()];
-  // Merge tiny fragments into neighbors, cap at 3 bursts.
+  if (parts.length <= 1 || text.length < 240 || maxBursts === 1) return [text.trim()];
+  // Merge tiny fragments into neighbors, cap at max_bursts.
   const bursts = [];
   for (const p of parts) {
-    if (bursts.length && (bursts[bursts.length - 1].length < 60 || bursts.length >= 3)) {
+    if (bursts.length && (bursts[bursts.length - 1].length < 60 || bursts.length >= maxBursts)) {
       bursts[bursts.length - 1] += '\n\n' + p;
     } else {
       bursts.push(p);

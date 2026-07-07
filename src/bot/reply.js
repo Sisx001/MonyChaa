@@ -90,6 +90,23 @@ function buildSystemPrompt(contact, extraContext) {
     ? `\n\nAlways reply in the same language the sender writes in.`
     : `\n\nAlways reply in ${lang}.`;
 
+  // Style directives from settings.
+  const personaName = config.getSetting('persona_name');
+  if (personaName) prompt += `\nYou are replying as ${personaName}.`;
+  const styleMap = {
+    concise: 'Keep replies very short — one or two sentences max.',
+    detailed: 'Give thorough, complete answers when the topic calls for it.',
+  };
+  if (styleMap[config.getSetting('reply_style')]) prompt += `\n${styleMap[config.getSetting('reply_style')]}`;
+  const emojiMap = {
+    none: 'Never use emoji.',
+    light: 'Use emoji very sparingly — at most one occasionally.',
+    heavy: 'Use emoji freely and expressively.',
+  };
+  if (emojiMap[config.getSetting('emoji_usage')]) prompt += `\n${emojiMap[config.getSetting('emoji_usage')]}`;
+  const writingStyle = config.getSetting('writing_style');
+  if (writingStyle) prompt += `\nStyle notes: ${writingStyle}`;
+
   const maxLen = contact?.max_length || Number(config.getSetting('max_response_length')) || 800;
   prompt += `\nKeep replies under ${maxLen} characters. Write like a real person texting — no markdown formatting.`;
 
@@ -142,9 +159,38 @@ function conversationMomentum(chatId) {
  * Generate a reply for an incoming message. Returns
  * { bursts, plan, result, contact } or null when auto-reply is off.
  */
+/** Silent no-reply window (unlike away mode, sends nothing at all). */
+function inQuietHours() {
+  const start = config.getSetting('quiet_hours_start');
+  const end = config.getSetting('quiet_hours_end');
+  if (!start || !end) return false;
+  const tz = config.getSetting('timezone') || 'UTC';
+  const now = new Date().toLocaleTimeString('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit' });
+  return start <= end ? (now >= start && now <= end) : (now >= start || now <= end);
+}
+
+/** Reply-policy gates: returns a skip reason or null to proceed. */
+function replyPolicyBlock(incomingText) {
+  if (inQuietHours()) return 'quiet_hours';
+  if (incomingText.length < (Number(config.getSetting('min_message_length')) || 0)) return 'too_short';
+  const blacklist = config.getJSON('blacklist_words', []);
+  const lower = incomingText.toLowerCase();
+  if (blacklist.some(w => w && lower.includes(String(w).toLowerCase()))) return 'blacklisted_word';
+  const probability = Number(config.getSetting('reply_probability'));
+  if (Number.isFinite(probability) && probability < 100 && Math.random() * 100 >= probability) return 'probability_skip';
+  return null;
+}
+
 async function generateReply(chatId, incomingText, { attachments = [] } = {}) {
   const contact = getContact(chatId);
   const start = Date.now();
+
+  const blocked = replyPolicyBlock(incomingText);
+  if (blocked) {
+    conversations.addMessage(chatId, 'user', incomingText);
+    logger.info(`Reply skipped for ${chatId}: ${blocked}`);
+    return null;
+  }
 
   // Away mode: canned response, once per 4 hours per contact.
   if (isAway()) {
@@ -196,6 +242,8 @@ async function generateReply(chatId, incomingText, { attachments = [] } = {}) {
   const maxLen = contact?.max_length || Number(config.getSetting('max_response_length')) || 800;
   const result = await chat(messages, {
     maxTokens: Math.min(2048, Math.ceil(maxLen / 2.5)),
+    temperature: Number(config.getSetting('temperature')) || 0.8,
+    topP: Number(config.getSetting('top_p')) || 1,
     needsVision: attachments.some(a => a.type === 'image'),
   });
 

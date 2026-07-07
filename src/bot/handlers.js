@@ -53,6 +53,9 @@ async function extractContent(msg) {
   const attachments = [];
   let text = msg.text || msg.caption || '';
 
+  if ((msg.voice || msg.audio) && config.getSetting('reply_to_voice') !== 'on') {
+    return { text: '', attachments }; // voice replies disabled entirely
+  }
   if (msg.voice || msg.audio) {
     const media = msg.voice || msg.audio;
     try {
@@ -67,6 +70,9 @@ async function extractContent(msg) {
     }
   }
 
+  if (msg.photo && msg.photo.length && config.getSetting('reply_to_photos') !== 'on') {
+    return { text: msg.caption || '', attachments };
+  }
   if (msg.photo && msg.photo.length) {
     try {
       const best = msg.photo[msg.photo.length - 1];
@@ -79,6 +85,7 @@ async function extractContent(msg) {
     }
   }
 
+  if (msg.sticker && config.getSetting('reply_to_stickers') !== 'on') return { text: '', attachments };
   if (msg.sticker && !text) text = `[sent a sticker: ${msg.sticker.emoji || 'sticker'}]`;
   if (msg.document && !text) text = `[sent a file: ${msg.document.file_name || 'document'}]`;
   if (msg.location && !text) text = `[shared a location]`;
@@ -123,6 +130,8 @@ async function handleBusinessMessage(ctx) {
     queueDepth++;
     events.broadcast('stats', { queueDepth });
     try {
+      if (msg.forward_origin && config.getSetting('ignore_forwarded') === 'on') return;
+
       const { contact, isNew } = upsertContact(chatId, { username: msg.from.username, name });
       if (isNew) events.broadcast('contact', { chatId, name, username: msg.from.username || null });
 

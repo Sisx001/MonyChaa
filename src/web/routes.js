@@ -95,6 +95,32 @@ router.post('/chat/test', wrap(async (req, res) => {
   res.json({ reply: result.text, provider: result.provider, model: result.model, latencyMs: result.latencyMs, cost: result.cost });
 }));
 
+// Multi-turn playground chat (ChatGPT-style panel chat).
+router.post('/chat/playground', wrap(async (req, res) => {
+  const { messages, provider, model, temperature, max_tokens, top_p, use_persona, system } = req.body;
+  if (!Array.isArray(messages) || !messages.length) return res.status(400).json({ error: 'messages required' });
+  const msgs = [];
+  if (use_persona) msgs.push({ role: 'system', content: buildSystemPrompt(null, null) });
+  else if (system) msgs.push({ role: 'system', content: String(system).slice(0, 8000) });
+  msgs.push(...messages
+    .filter(m => m && ['user', 'assistant'].includes(m.role) && typeof m.content === 'string')
+    .slice(-40)
+    .map(m => ({ role: m.role, content: m.content.slice(0, 16000) })));
+  const opts = {
+    temperature: temperature !== undefined ? Number(temperature) : undefined,
+    topP: top_p !== undefined ? Number(top_p) : undefined,
+    maxTokens: Math.min(4096, Number(max_tokens) || 1024),
+  };
+  const result = provider && model
+    ? await chatOnce(provider, model, msgs, opts)
+    : await chat(msgs, opts);
+  res.json({
+    reply: result.text, provider: result.provider, model: result.model,
+    tokensIn: result.tokensIn, tokensOut: result.tokensOut,
+    cost: result.cost, latencyMs: result.latencyMs,
+  });
+}));
+
 // ---------- Providers / gateway ----------
 router.get('/providers', wrap((req, res) => {
   const health = Object.fromEntries(

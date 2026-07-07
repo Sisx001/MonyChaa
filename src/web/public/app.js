@@ -68,10 +68,12 @@ $$('.nav-btn').forEach(btn => btn.addEventListener('click', () => {
 }));
 
 // ---------- SSE live feed ----------
+let feedEnabled = true;
 function connectSSE() {
   const es = new EventSource('/api/events');
   const feed = $('#live-feed');
   const push = (cls, text) => {
+    if (!feedEnabled) return;
     const div = document.createElement('div');
     div.className = cls;
     div.textContent = text;
@@ -85,14 +87,14 @@ function connectSSE() {
     push(d.direction === 'incoming' ? 'in' : 'out', `${d.direction === 'incoming' ? '←' : '→'} ${d.chatId}: ${d.content}`);
     if ($('#tab-dashboard').classList.contains('active')) loadDashboard();
   });
-  es.addEventListener('error', e => { try { push('err', '⚠ ' + JSON.parse(e.data).message); } catch {} });
+  es.addEventListener('error', e => { try { push('err', 'error: ' + JSON.parse(e.data).message); } catch {} });
   es.addEventListener('connection', e => {
     const d = JSON.parse(e.data);
-    push('out', `🔗 business connection ${d.status}`);
+    push('out', `link: business connection ${d.status}`);
   });
   es.addEventListener('contact', e => {
     const d = JSON.parse(e.data);
-    push('in', `👋 new contact: ${d.name}`);
+    push('in', `new contact: ${d.name}`);
     if ($('#tab-contacts').classList.contains('active')) loadContacts().catch(() => {});
   });
 }
@@ -105,6 +107,7 @@ async function loadTopbar() {
   $('#qt-away').checked = s.away_mode === 'on';
   $('#qt-typing').checked = s.typing_simulation === 'on';
   $('#topbar-model').textContent = `${s.primary_provider}/${s.primary_model}`;
+  feedEnabled = s.stream_feed !== 'off';
 }
 $$('[data-qt]').forEach(el => el.addEventListener('change', async () => {
   await api('/settings', { method: 'PUT', body: { [el.dataset.qt]: el.checked ? 'on' : 'off' } });
@@ -143,7 +146,7 @@ async function loadDashboard() {
   chartHourly?.destroy();
   chartHourly = new Chart(ctx1, {
     type: 'bar',
-    data: { labels: hours, datasets: [{ data: counts, backgroundColor: '#5288c1', borderRadius: 4 }] },
+    data: { labels: hours, datasets: [{ data: counts, backgroundColor: '#7c6cff', borderRadius: 5 }] },
     options: chartOpts(),
   });
 
@@ -156,11 +159,11 @@ async function loadDashboard() {
       labels: s.perProvider.map(p => p.provider),
       datasets: [{
         data: s.perProvider.map(p => Number(p.cost?.toFixed(6)) || 0.000001),
-        backgroundColor: ['#5288c1', '#4fae4e', '#e0a934', '#e05348', '#9b6dd6', '#4ec3c9', '#c96da8'],
+        backgroundColor: ['#7c6cff', '#4cc9f0', '#2fd575', '#f5b83d', '#f2555a', '#c96da8', '#8b98ad'],
         borderWidth: 0,
       }],
     },
-    options: { plugins: { legend: { position: 'right', labels: { color: '#8a9aa9', boxWidth: 12 } } } },
+    options: { plugins: { legend: { position: 'right', labels: { color: '#7d8496', boxWidth: 12 } } } },
   });
 
   // Per-provider usage table
@@ -191,8 +194,8 @@ function chartOpts() {
   return {
     plugins: { legend: { display: false } },
     scales: {
-      x: { ticks: { color: '#8a9aa9', font: { size: 10 } }, grid: { color: '#1e2c3a' } },
-      y: { ticks: { color: '#8a9aa9', precision: 0 }, grid: { color: '#1e2c3a' }, beginAtZero: true },
+      x: { ticks: { color: '#7d8496', font: { size: 10 } }, grid: { color: '#23262f' } },
+      y: { ticks: { color: '#7d8496', precision: 0 }, grid: { color: '#23262f' }, beginAtZero: true },
     },
   };
 }
@@ -229,7 +232,7 @@ async function loadVersions() {
       <div class="btn-row" style="margin:0">
         <button class="btn btn-sm" data-diff="${v.id}">Diff</button>
         <button class="btn btn-sm" data-rollback="${v.id}">Rollback</button>
-        <button class="btn btn-sm btn-danger" data-delver="${v.id}">✕</button>
+        <button class="btn btn-sm btn-danger" data-delver="${v.id}"><svg class="ic ic-sm"><use href="#i-x"/></svg></button>
       </div>
     </div>`).join('') : '<p class="hint">No saved versions yet.</p>';
 
@@ -301,7 +304,7 @@ async function sendTestChat() {
     const r = await api('/chat/test', { method: 'POST', body: { message: msg } });
     $('#pending-bubble').outerHTML = `<div class="bubble bot">${esc(r.reply)}<span class="meta">${esc(r.provider)}/${esc(r.model)} · ${r.latencyMs}ms · $${(r.cost || 0).toFixed(6)}</span></div>`;
   } catch (err) {
-    $('#pending-bubble').outerHTML = `<div class="bubble bot">⚠ ${esc(err.message)}</div>`;
+    $('#pending-bubble').outerHTML = `<div class="bubble bot">Error: ${esc(err.message)}</div>`;
   }
   log.scrollTop = log.scrollHeight;
 }
@@ -327,7 +330,7 @@ async function loadGateway() {
 
   $('#active-chain').textContent = gwData.active_chain.length
     ? 'Active chain: ' + gwData.active_chain.map(c => `${c.provider}/${c.model}`).join(' → ')
-    : '⚠ No configured providers — add an API key to .env';
+    : 'No configured providers — add an API key in Settings or .env';
 
   $('#provider-grid').innerHTML = gwData.providers.map(p => {
     const h = p.health;
@@ -338,7 +341,7 @@ async function loadGateway() {
       <h4>${esc(p.label)} ${badge} ${p.free ? '<span class="badge badge-green">free tier</span>' : ''}</h4>
       <div class="models">${p.models.map(esc).join('<br>')}</div>
       ${h ? `<div class="hint">latency ${h.latency_ms}ms · errors ${(h.error_rate * 100).toFixed(0)}%</div>` : ''}
-      <button class="btn btn-sm" data-test-provider="${p.id}" ${!p.configured ? 'disabled' : ''}>⚡ Test</button>
+      <button class="btn btn-sm" data-test-provider="${p.id}" ${!p.configured ? 'disabled' : ''}><svg class="ic ic-sm"><use href="#i-zap"/></svg> Test</button>
       <div class="test-result" id="test-${p.id}"></div>
     </div>`;
   }).join('');
@@ -350,8 +353,8 @@ async function loadGateway() {
     out.textContent = 'Testing…';
     const r = await api('/providers/test', { method: 'POST', body: { provider: id, model } });
     out.innerHTML = r.ok
-      ? `<span style="color:var(--green)">✓ "${esc(r.reply)}" in ${r.latencyMs}ms</span>`
-      : `<span style="color:var(--red)">✗ ${esc(r.error)}</span>`;
+      ? `<span style="color:var(--green)">OK — "${esc(r.reply)}" in ${r.latencyMs}ms</span>`
+      : `<span style="color:var(--red)">Failed: ${esc(r.error)}</span>`;
   }));
 }
 
@@ -369,7 +372,7 @@ function renderFallbacks() {
       <div>${i + 1}. <b>${esc(f.provider)}</b> / ${esc(f.model)}</div>
       <div class="btn-row" style="margin:0">
         ${i > 0 ? `<button class="btn btn-sm" data-fb-up="${i}">↑</button>` : ''}
-        <button class="btn btn-sm btn-danger" data-fb-del="${i}">✕</button>
+        <button class="btn btn-sm btn-danger" data-fb-del="${i}"><svg class="ic ic-sm"><use href="#i-x"/></svg></button>
       </div>
     </div>`).join('') : '<p class="hint">No fallbacks configured.</p>';
   $$('[data-fb-del]').forEach(b => b.addEventListener('click', () => { fallbackChain.splice(b.dataset.fbDel, 1); renderFallbacks(); }));
@@ -407,7 +410,7 @@ async function loadMemory() {
     <tr>
       <td><b>${esc(f.key)}</b></td><td>${esc(f.value)}</td>
       <td><span class="badge badge-${f.priority === 'critical' ? 'red' : f.priority === 'important' ? 'yellow' : 'gray'}">${esc(f.priority)}</span></td>
-      <td><button class="btn btn-sm btn-danger" data-del-fact="${f.id}">✕</button></td>
+      <td><button class="btn btn-sm btn-danger" data-del-fact="${f.id}"><svg class="ic ic-sm"><use href="#i-trash"/></svg></button></td>
     </tr>`).join('') : '<tr><td colspan="4" class="hint">No facts yet — add things the bot should know.</td></tr>';
   $$('[data-del-fact]').forEach(b => b.addEventListener('click', async () => {
     await api('/facts/' + b.dataset.delFact, { method: 'DELETE' }); loadMemory();
@@ -418,7 +421,7 @@ async function loadMemory() {
       <td>${m.chat_id || 'global'}</td><td>${esc(m.content)}</td>
       <td><span class="badge badge-${m.priority === 'critical' ? 'red' : m.priority === 'important' ? 'yellow' : 'gray'}">${esc(m.priority)}</span></td>
       <td>${fmtTime(m.created_at)}</td>
-      <td><button class="btn btn-sm btn-danger" data-del-mem="${m.id}">✕</button></td>
+      <td><button class="btn btn-sm btn-danger" data-del-mem="${m.id}"><svg class="ic ic-sm"><use href="#i-trash"/></svg></button></td>
     </tr>`).join('') : '<tr><td colspan="5" class="hint">No memories yet — extracted automatically from conversations.</td></tr>';
   $$('[data-del-mem]').forEach(b => b.addEventListener('click', async () => {
     await api('/memories/' + b.dataset.delMem, { method: 'DELETE' }); loadMemory();
@@ -456,7 +459,7 @@ async function loadContacts() {
   const rows = await api('/contacts' + (q ? '?q=' + encodeURIComponent(q) : ''));
   $('#contacts-table tbody').innerHTML = rows.length ? rows.map(c => `
     <tr data-edit="${c.chat_id}" style="cursor:pointer">
-      <td>${esc(c.name || '—')} ${c.priority ? '⭐' : ''}</td>
+      <td>${esc(c.name || '—')} ${c.priority ? '<svg class="ic ic-sm ic-gold"><use href="#i-star"/></svg>' : ''}</td>
       <td>${c.username ? '@' + esc(c.username) : '—'}</td>
       <td>${c.chat_id}</td>
       <td>${esc(c.relationship || '—')}</td>
@@ -585,7 +588,7 @@ async function loadTools() {
     if (r.ok && r.photoUrl) {
       out.innerHTML = `${esc(r.output)}<br><img src="${esc(r.photoUrl)}" style="max-width:220px;border-radius:8px;margin-top:6px">`;
     } else {
-      out.textContent = r.ok ? r.output : '✗ ' + r.error;
+      out.textContent = r.ok ? r.output : 'Failed: ' + r.error;
     }
   }));
 
@@ -593,7 +596,7 @@ async function loadTools() {
     <tr>
       <td>${s.chat_id}</td><td>${esc(s.content)}</td><td>${esc(s.send_at)}</td>
       <td><span class="badge badge-${s.status === 'sent' ? 'green' : s.status === 'failed' ? 'red' : 'blue'}">${esc(s.status)}</span></td>
-      <td>${s.status === 'pending' ? `<button class="btn btn-sm btn-danger" data-del-sched="${s.id}">✕</button>` : ''}</td>
+      <td>${s.status === 'pending' ? `<button class="btn btn-sm btn-danger" data-del-sched="${s.id}"><svg class="ic ic-sm"><use href="#i-x"/></svg></button>` : ''}</td>
     </tr>`).join('') : '<tr><td colspan="5" class="hint">No scheduled messages.</td></tr>';
   $$('[data-del-sched]').forEach(b => b.addEventListener('click', async () => {
     await api('/scheduled/' + b.dataset.delSched, { method: 'DELETE' }); loadTools();
@@ -645,7 +648,7 @@ async function loadLibrary() {
       </div>
       <label class="switch"><input type="checkbox" data-skill-toggle="${s.id}" ${s.enabled ? 'checked' : ''}><span class="slider"></span></label>
       <button class="btn btn-sm" data-skill-edit="${s.id}">Edit</button>
-      <button class="btn btn-sm btn-danger" data-skill-del="${s.id}">✕</button>
+      <button class="btn btn-sm btn-danger" data-skill-del="${s.id}"><svg class="ic ic-sm"><use href="#i-trash"/></svg></button>
     </div>`;
   }).join('') : '<p class="hint">No skills yet — install from the catalog below, search GitHub, or let the bot learn its own.</p>';
 
@@ -665,7 +668,7 @@ async function loadLibrary() {
       <h4>${esc(c.name)} ${c.installed ? '<span class="badge badge-green">installed</span>' : ''}</h4>
       <div class="desc hint">${esc(c.description)}</div>
       <div class="hint" style="margin:6px 0">${c.triggers.length ? c.triggers.map(esc).join(' · ') : 'always active'}</div>
-      <button class="btn btn-sm ${c.installed ? '' : 'btn-primary'}" data-cat-install="${esc(c.name)}">${c.installed ? '↻ Reinstall' : '⬇ Install'}</button>
+      <button class="btn btn-sm ${c.installed ? '' : 'btn-primary'}" data-cat-install="${esc(c.name)}">${c.installed ? 'Reinstall' : 'Install'}</button>
     </div>`).join('');
   $$('[data-cat-install]').forEach(el => el.addEventListener('click', async () => {
     await api('/skills/catalog/install', { method: 'POST', body: { name: el.dataset.catInstall } });
@@ -684,8 +687,8 @@ async function loadLibrary() {
         ${s.tools.length ? `<details><summary>tools</summary><div class="tool-output" style="display:block">${s.tools.map(t => `• ${esc(t.name)} — ${esc(t.description)}`).join('<br>')}</div></details>` : ''}
       </div>
       <label class="switch"><input type="checkbox" data-mcp-toggle="${s.id}" ${s.enabled ? 'checked' : ''}><span class="slider"></span></label>
-      <button class="btn btn-sm" data-mcp-connect="${s.id}">🔌 Connect</button>
-      <button class="btn btn-sm btn-danger" data-mcp-del="${s.id}">✕</button>
+      <button class="btn btn-sm" data-mcp-connect="${s.id}"><svg class="ic ic-sm"><use href="#i-plug"/></svg> Connect</button>
+      <button class="btn btn-sm btn-danger" data-mcp-del="${s.id}"><svg class="ic ic-sm"><use href="#i-trash"/></svg></button>
     </div>`).join('') : '<p class="hint">No MCP servers connected.</p>';
 
   $$('[data-mcp-toggle]').forEach(el => el.addEventListener('change', async () => {
@@ -743,11 +746,11 @@ $('#gh-search').addEventListener('click', async () => {
     $('#gh-results').innerHTML = rows.length ? rows.map(r => `
       <div class="tool-item">
         <div class="info">
-          <div class="name">⭐ ${r.stars.toLocaleString()} — ${esc(r.full_name)}</div>
+          <div class="name"><svg class="ic ic-sm"><use href="#i-star"/></svg> ${r.stars.toLocaleString()} — ${esc(r.full_name)}</div>
           <div class="desc">${esc(r.description)}</div>
           <a class="hint" href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a>
         </div>
-        <button class="btn btn-sm btn-primary" data-gh-install="${esc(r.full_name)}">⬇ Install as skill</button>
+        <button class="btn btn-sm btn-primary" data-gh-install="${esc(r.full_name)}">Install as skill</button>
       </div>`).join('') : '<p class="hint">No results.</p>';
     $$('[data-gh-install]').forEach(el => el.addEventListener('click', async () => {
       el.textContent = 'Installing…'; el.disabled = true;
@@ -755,7 +758,7 @@ $('#gh-search').addEventListener('click', async () => {
         const r = await api('/library/github/install', { method: 'POST', body: { repo: el.dataset.ghInstall } });
         toast(`Installed skill: ${r.name}`);
         loadLibrary();
-      } catch (err) { toast(err.message, false); el.textContent = '⬇ Install as skill'; el.disabled = false; }
+      } catch (err) { toast(err.message, false); el.textContent = 'Install as skill'; el.disabled = false; }
     }));
   } catch (err) { $('#gh-results').innerHTML = `<p class="hint" style="color:var(--red)">${esc(err.message)}</p>`; }
 });
@@ -778,10 +781,149 @@ $('#resolve-btn').addEventListener('click', async () => {
   out.textContent = 'Resolving…';
   try {
     const r = await api('/resolve?username=' + encodeURIComponent($('#resolve-input').value));
-    out.innerHTML = `✅ <b>${esc(r.name || '')}</b> → chat_id <code>${r.id}</code> (${esc(r.source)})`;
-  } catch (err) { out.textContent = '✗ ' + err.message; }
+    out.innerHTML = `<b>${esc(r.name || '')}</b> → chat_id <code>${r.id}</code> (${esc(r.source)})`;
+  } catch (err) { out.textContent = 'Not found: ' + err.message; }
 });
 $('#resolve-input').addEventListener('keydown', e => { if (e.key === 'Enter') $('#resolve-btn').click(); });
+
+// ---------- CHAT PLAYGROUND ----------
+const CHAT_KEY = 'sp_chat_history';
+let chatHistory = [];
+try { chatHistory = JSON.parse(localStorage.getItem(CHAT_KEY) || '[]'); } catch {}
+let chatProviders = null;
+let chatBusy = false;
+
+// Minimal markdown renderer: code blocks, inline code, bold, italic, links, lists.
+function renderMarkdown(text) {
+  let out = esc(text);
+  out = out.replace(/```(\w*)\n?([\s\S]*?)```/g, (m, lang, code) =>
+    `<pre class="md-code"><button class="md-copy" data-copy="${esc(encodeURIComponent(code))}" title="Copy"><svg class="ic ic-sm"><use href="#i-copy"/></svg></button><code>${code}</code></pre>`);
+  out = out.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  out = out.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+  out = out.replace(/(^|\s)\*([^*\n]+)\*/g, '$1<em>$2</em>');
+  out = out.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+  out = out.replace(/(^|\n)[-•] (.+)/g, '$1<span class="md-li">• $2</span>');
+  out = out.replace(/\n/g, '<br>');
+  return out;
+}
+
+function saveChat() { localStorage.setItem(CHAT_KEY, JSON.stringify(chatHistory.slice(-60))); }
+
+function renderChatThread() {
+  const thread = $('#chat-thread');
+  if (!chatHistory.length) {
+    thread.innerHTML = `<div class="chat-empty"><svg class="ic ic-xl"><use href="#i-chat"/></svg>
+      <p>Talk to your secretary. Test the persona, tools and models — nothing is sent to Telegram.</p></div>`;
+    return;
+  }
+  thread.innerHTML = chatHistory.map((m, i) => `
+    <div class="chat-msg ${m.role}">
+      <div class="chat-avatar">${m.role === 'user'
+        ? '<svg class="ic"><use href="#i-users"/></svg>'
+        : '<svg class="ic"><use href="#i-bot"/></svg>'}</div>
+      <div class="chat-body">
+        <div class="chat-content">${renderMarkdown(m.content)}</div>
+        ${m.meta ? `<div class="chat-meta">${esc(m.meta)}</div>` : ''}
+        <div class="chat-actions">
+          <button class="chat-act" data-chat-copy="${i}" title="Copy"><svg class="ic ic-sm"><use href="#i-copy"/></svg></button>
+          ${m.role === 'assistant' && i === chatHistory.length - 1
+            ? `<button class="chat-act" data-chat-regen title="Regenerate"><svg class="ic ic-sm"><use href="#i-rotate"/></svg></button>` : ''}
+        </div>
+      </div>
+    </div>`).join('');
+  thread.scrollTop = thread.scrollHeight;
+
+  $$('[data-chat-copy]').forEach(b => b.addEventListener('click', () => {
+    navigator.clipboard.writeText(chatHistory[b.dataset.chatCopy].content);
+    toast('Copied');
+  }));
+  $$('[data-copy]').forEach(b => b.addEventListener('click', () => {
+    navigator.clipboard.writeText(decodeURIComponent(b.dataset.copy));
+    toast('Code copied');
+  }));
+  const regen = $('[data-chat-regen]');
+  if (regen) regen.addEventListener('click', () => {
+    chatHistory.pop();
+    saveChat();
+    sendChatRequest();
+  });
+}
+
+async function loadChat() {
+  if (!chatProviders) {
+    const gw = await api('/providers');
+    chatProviders = gw.providers;
+    $('#chat-provider').innerHTML = '<option value="">Auto (fallback chain)</option>' +
+      chatProviders.filter(p => p.configured).map(p => `<option value="${p.id}">${esc(p.label)}</option>`).join('');
+    fillChatModels();
+  }
+  renderChatThread();
+}
+function fillChatModels() {
+  const p = chatProviders.find(x => x.id === $('#chat-provider').value);
+  $('#chat-model').innerHTML = p ? p.models.map(m => `<option>${esc(m)}</option>`).join('') : '<option value="">auto</option>';
+}
+$('#chat-provider').addEventListener('change', fillChatModels);
+$('#chat-temp').addEventListener('input', () => $('#chat-temp-out').textContent = $('#chat-temp').value);
+
+async function sendChatRequest() {
+  if (chatBusy) return;
+  chatBusy = true;
+  const thread = $('#chat-thread');
+  thread.insertAdjacentHTML('beforeend', `
+    <div class="chat-msg assistant" id="chat-pending">
+      <div class="chat-avatar"><svg class="ic"><use href="#i-bot"/></svg></div>
+      <div class="chat-body"><div class="chat-content"><span class="typing-dots"><i></i><i></i><i></i></span></div></div>
+    </div>`);
+  thread.scrollTop = thread.scrollHeight;
+  try {
+    const r = await api('/chat/playground', {
+      method: 'POST',
+      body: {
+        messages: chatHistory.map(m => ({ role: m.role, content: m.content })),
+        provider: $('#chat-provider').value || undefined,
+        model: $('#chat-provider').value ? $('#chat-model').value : undefined,
+        temperature: Number($('#chat-temp').value),
+        max_tokens: Number($('#chat-maxtok').value) || 1024,
+        use_persona: $('#chat-system-mode').value === 'persona',
+      },
+    });
+    chatHistory.push({
+      role: 'assistant', content: r.reply,
+      meta: `${r.provider}/${r.model} · ${r.latencyMs}ms · ${(r.tokensIn || 0) + (r.tokensOut || 0)} tok · $${(r.cost || 0).toFixed(6)}`,
+    });
+  } catch (err) {
+    chatHistory.push({ role: 'assistant', content: `Something went wrong: ${err.message}`, meta: 'error' });
+  }
+  chatBusy = false;
+  saveChat();
+  renderChatThread();
+}
+
+function sendChatMessage() {
+  const input = $('#chat-input');
+  const text = input.value.trim();
+  if (!text || chatBusy) return;
+  input.value = '';
+  input.style.height = 'auto';
+  chatHistory.push({ role: 'user', content: text });
+  saveChat();
+  renderChatThread();
+  sendChatRequest();
+}
+$('#chat-send').addEventListener('click', sendChatMessage);
+$('#chat-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); }
+});
+$('#chat-input').addEventListener('input', function () {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 160) + 'px';
+});
+$('#chat-clear').addEventListener('click', () => {
+  chatHistory = [];
+  saveChat();
+  renderChatThread();
+});
 
 // ---------- LOGS ----------
 let currentLog = 'messages';
@@ -819,7 +961,7 @@ async function loadLogs() {
     table.querySelector('tbody').innerHTML = rows.map(r => `
       <tr><td>${fmtTime(r.created_at)}</td><td>${esc(r.source)}</td><td>${esc(r.message)}</td>
       <td><details><summary>stack</summary><pre style="font-size:11px;white-space:pre-wrap">${esc(r.stack || '')}</pre></details></td></tr>`).join('')
-      || '<tr><td colspan="4" class="hint">No errors 🎉</td></tr>';
+      || '<tr><td colspan="4" class="hint">No errors</td></tr>';
   } else if (currentLog === 'events') {
     const rows = await api('/logs/events');
     table.querySelector('thead').innerHTML = '<tr><th>Time</th><th>Type</th><th>Detail</th></tr>';
@@ -850,7 +992,7 @@ async function loadSettings() {
       <td>${esc(k.masked || '—')}</td>
       <td class="btn-row" style="margin:0">
         <button class="btn btn-sm" data-set-key="${esc(k.name)}">Set</button>
-        ${k.source === 'panel' ? `<button class="btn btn-sm btn-danger" data-del-key="${esc(k.name)}">✕</button>` : ''}
+        ${k.source === 'panel' ? `<button class="btn btn-sm btn-danger" data-del-key="${esc(k.name)}"><svg class="ic ic-sm"><use href="#i-x"/></svg></button>` : ''}
       </td>
     </tr>`).join('');
   $$('[data-set-key]').forEach(b => b.addEventListener('click', async () => {
@@ -887,6 +1029,7 @@ $('#restore-file').addEventListener('change', async e => {
 // ---------- boot ----------
 const loaders = {
   dashboard: loadDashboard,
+  chat: loadChat,
   prompt: loadPrompt,
   gateway: loadGateway,
   memory: loadMemory,

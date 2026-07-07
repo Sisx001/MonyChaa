@@ -5,7 +5,10 @@ const db = require('../db/schema');
 const logger = require('../logger');
 const { PROVIDERS, apiKey, isConfigured, modelCost, isVisionModel } = require('./providers');
 
-const REQUEST_TIMEOUT_MS = 60_000;
+function requestTimeoutMs() {
+  const s = Number(require('../config').getSetting('llm_timeout_s'));
+  return (Number.isFinite(s) && s >= 5 ? s : 60) * 1000;
+}
 
 function recordUsage(provider, model, tokensIn, tokensOut) {
   const [inCost, outCost] = modelCost(provider, model);
@@ -37,7 +40,7 @@ function recordHealth(provider, ok, latencyMs, errMsg) {
 
 async function fetchJson(url, options) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), requestTimeoutMs());
   try {
     const res = await fetch(url, { ...options, signal: controller.signal });
     const text = await res.text();
@@ -79,6 +82,7 @@ async function callOpenAI(provider, model, messages, opts) {
     max_tokens: opts.maxTokens || 1024,
     temperature: opts.temperature ?? 0.8,
   };
+  if (opts.topP !== undefined && opts.topP < 1) body.top_p = opts.topP;
   const headers = { 'Content-Type': 'application/json' };
   const key = apiKey(provider);
   if (key) headers['Authorization'] = `Bearer ${key}`;
@@ -111,6 +115,7 @@ async function callGemini(provider, model, messages, opts) {
     contents,
     generationConfig: { maxOutputTokens: opts.maxTokens || 1024, temperature: opts.temperature ?? 0.8 },
   };
+  if (opts.topP !== undefined && opts.topP < 1) body.generationConfig.topP = opts.topP;
   if (system) body.systemInstruction = { parts: [{ text: system }] };
   const json = await fetchJson(
     `${p.baseUrl}/models/${model}:generateContent?key=${key}`,
@@ -131,6 +136,7 @@ async function callAnthropic(provider, model, messages, opts) {
     model,
     max_tokens: opts.maxTokens || 1024,
     temperature: opts.temperature ?? 0.8,
+    ...(opts.topP !== undefined && opts.topP < 1 ? { top_p: opts.topP } : {}),
     messages: messages.filter(m => m.role !== 'system').map(m => ({
       role: m.role,
       content: typeof m.content === 'string' ? m.content : m.content.map(part => {

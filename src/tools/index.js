@@ -236,13 +236,14 @@ function enabledTools() {
 
 /** Normalize a tool result to { context, photoUrl } shape. */
 function normalizeResult(name, output) {
+  const cap = Number(config.getSetting('tool_max_output')) || 3000;
   if (output && typeof output === 'object') {
     return {
-      context: `[Tool ${name} result]\n${String(output.text || '').slice(0, 3000)}`,
+      context: `[Tool ${name} result]\n${String(output.text || '').slice(0, cap)}`,
       photoUrl: output.photoUrl || null,
     };
   }
-  return { context: `[Tool ${name} result]\n${String(output).slice(0, 3000)}`, photoUrl: null };
+  return { context: `[Tool ${name} result]\n${String(output).slice(0, cap)}`, photoUrl: null };
 }
 
 /**

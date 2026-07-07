@@ -103,6 +103,37 @@ const SETTING_DEFAULTS = {
   // Skill system.
   skills_enabled: 'on',
   self_skill_learning: 'off',
+
+  // ---- Generation & style ----
+  temperature: '0.8',
+  top_p: '1',
+  reply_style: 'balanced',      // concise | balanced | detailed
+  emoji_usage: 'natural',       // none | light | natural | heavy
+  persona_name: '',             // how the bot refers to itself/you
+  writing_style: '',            // free-text extra style instructions
+  double_text: 'on',            // allow multi-message bursts
+  max_bursts: '3',
+
+  // ---- Reply policy ----
+  reply_probability: '100',     // % of messages that get an auto-reply
+  quiet_hours_start: '',        // HH:MM — silent (no reply, no away msg)
+  quiet_hours_end: '',
+  blacklist_words: '[]',        // never auto-reply if message contains one
+  ignore_forwarded: 'off',
+  reply_to_photos: 'on',
+  reply_to_voice: 'on',
+  reply_to_stickers: 'on',
+  min_message_length: '0',
+
+  // ---- Memory tuning ----
+  recall_count: '5',
+  similarity_threshold: '0.45',
+
+  // ---- Infrastructure ----
+  llm_timeout_s: '60',
+  tool_max_output: '3000',
+  stream_feed: 'on',            // live feed in the panel sidebar
+  dashboard_refresh_s: '15',
 };
 
 // API keys manageable from the admin panel (stored in DB, env is fallback).
