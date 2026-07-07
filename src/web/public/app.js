@@ -6,19 +6,48 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+// Top progress bar tracks in-flight API requests.
+let inflight = 0, progTimer = null;
+function progStart() {
+  inflight++;
+  const bar = document.getElementById('progress-bar');
+  if (!bar) return;
+  bar.classList.add('active');
+  bar.style.width = '18%';
+  clearInterval(progTimer);
+  progTimer = setInterval(() => {
+    const w = parseFloat(bar.style.width) || 18;
+    if (w < 88) bar.style.width = (w + (90 - w) * 0.12) + '%';
+  }, 200);
+}
+function progDone() {
+  inflight = Math.max(0, inflight - 1);
+  if (inflight > 0) return;
+  const bar = document.getElementById('progress-bar');
+  if (!bar) return;
+  clearInterval(progTimer);
+  bar.style.width = '100%';
+  setTimeout(() => { bar.classList.remove('active'); bar.style.width = '0'; }, 250);
+}
+
 async function api(path, options = {}) {
-  const res = await fetch('/api' + path, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
-  if (res.status === 401 && path !== '/login') {
-    showLogin();
-    throw new Error('authentication required');
+  progStart();
+  try {
+    const res = await fetch('/api' + path, {
+      headers: { 'Content-Type': 'application/json' },
+      ...options,
+      body: options.body ? JSON.stringify(options.body) : undefined,
+    });
+    if (res.status === 401 && path !== '/login') {
+      showLogin();
+      throw new Error('authentication required');
+    }
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+    return json;
+  } finally {
+    progDone();
   }
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
-  return json;
 }
 
 // ---------- auth ----------

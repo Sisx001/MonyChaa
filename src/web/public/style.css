@@ -565,3 +565,13 @@ input, select, textarea { backdrop-filter: blur(6px); }
 .model-row:hover { border-color: var(--accent-border); }
 .model-info { min-width: 0; }
 .model-id { font-family: "SF Mono", ui-monospace, monospace; font-size: 12.5px; font-weight: 600; word-break: break-all; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+
+/* Top progress bar (tracks API activity) */
+#progress-bar {
+  position: fixed; top: 0; left: 0; height: 3px; width: 0;
+  background: var(--accent-grad); z-index: 200;
+  box-shadow: 0 0 10px var(--accent); opacity: 0;
+  transition: width .2s var(--ease), opacity .3s;
+  border-radius: 0 3px 3px 0;
+}
+#progress-bar.active { opacity: 1; }
