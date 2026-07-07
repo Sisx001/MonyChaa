@@ -458,9 +458,23 @@ $('#memory-import-file').addEventListener('change', async e => {
 function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
 
 // ---------- CONTACTS ----------
+let contactAssistant = 0;
+async function refreshContactAssistants() {
+  try {
+    const rows = await api('/assistants');
+    const sel = $('#contact-assistant');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="0">Primary</option>' + rows.map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join('');
+    sel.value = cur || '0';
+  } catch { /* assistants optional */ }
+}
 async function loadContacts() {
+  await refreshContactAssistants();
+  contactAssistant = Number($('#contact-assistant').value) || 0;
   const q = $('#contact-search').value;
-  const rows = await api('/contacts' + (q ? '?q=' + encodeURIComponent(q) : ''));
+  const params = new URLSearchParams({ assistant_id: contactAssistant });
+  if (q) params.set('q', q);
+  const rows = await api('/contacts?' + params);
   $('#contacts-table tbody').innerHTML = rows.length ? rows.map(c => `
     <tr data-edit="${c.chat_id}" style="cursor:pointer">
       <td>${esc(c.name || '—')} ${c.priority ? '<svg class="ic ic-sm ic-gold"><use href="#i-star"/></svg>' : ''}</td>
@@ -511,7 +525,7 @@ $('#contact-modal').addEventListener('click', e => { if (e.target === $('#contac
 
 $('#contact-save').addEventListener('click', async () => {
   const body = {
-    chat_id: Number($('#c-chat_id').value),
+    chat_id: Number($('#c-chat_id').value), assistant_id: contactAssistant,
     name: $('#c-name').value, username: $('#c-username').value.replace(/^@/, ''),
     relationship: $('#c-relationship').value, tone: $('#c-tone').value, gender: $('#c-gender').value,
     auto_reply: Number($('#c-auto_reply').value), priority: Number($('#c-priority').value),
@@ -532,11 +546,12 @@ $('#contact-save').addEventListener('click', async () => {
 });
 $('#contact-delete').addEventListener('click', async () => {
   if (!editingChatId || !confirm('Delete this contact?')) return;
-  await api('/contacts/' + editingChatId, { method: 'DELETE' });
+  await api(`/contacts/${editingChatId}?assistant_id=${contactAssistant}`, { method: 'DELETE' });
   toast('Contact deleted');
   $('#contact-modal').style.display = 'none';
   loadContacts();
 });
+$('#contact-assistant').addEventListener('change', loadContacts);
 $('#c-learn').addEventListener('click', async () => {
   if (!editingChatId) return toast('Save the contact first', false);
   const transcript = $('#c-transcript').value.trim();
@@ -550,7 +565,7 @@ $('#c-learn').addEventListener('click', async () => {
 });
 $('#contact-history').addEventListener('click', async () => {
   if (!editingChatId) return;
-  const rows = await api(`/contacts/${editingChatId}/history`);
+  const rows = await api(`/contacts/${editingChatId}/history?assistant_id=${contactAssistant}`);
   const view = $('#c-history-view');
   view.style.display = 'block';
   view.innerHTML = rows.length ? rows.map(m =>

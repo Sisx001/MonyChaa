@@ -336,7 +336,12 @@
       </div>
       <div class="card">
         <div class="row-between">
-          <input id="contact-search" class="search-input" placeholder="Search name, @username, chat_id…" style="max-width:340px">
+          <div class="input-row" style="margin:0">
+            <label style="flex-direction:row;align-items:center;gap:6px">Assistant
+              <select id="contact-assistant" style="width:auto;min-width:130px"><option value="0">Primary</option></select>
+            </label>
+            <input id="contact-search" class="search-input" placeholder="Search name, @username, chat_id…" style="max-width:300px;margin:0">
+          </div>
           <div class="btn-row">
             <button class="btn" id="contact-import-btn"><svg class="ic ic-sm"><use href="#i-upload"/></svg> Import Telegram export</button>
             <input type="file" id="contact-import-file" accept=".json" hidden>

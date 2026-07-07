@@ -236,7 +236,7 @@ router.post('/contacts/:chatId/learn', wrap(async (req, res) => {
 
 // Conversation history per contact.
 router.get('/contacts/:chatId/history', wrap((req, res) => {
-  res.json(conversations.getHistory(Number(req.params.chatId), 200));
+  res.json(conversations.getHistory(Number(req.params.chatId), 200, Number(req.query.assistant_id) || 0));
 }));
 router.delete('/contacts/:chatId/history', wrap((req, res) => {
   conversations.clearHistory(Number(req.params.chatId));
@@ -325,14 +325,16 @@ router.delete('/scheduled/:id', wrap((req, res) => {
 
 // ---------- Logs ----------
 router.get('/logs/messages', wrap((req, res) => {
-  const { q, chat_id, status, limit } = req.query;
+  const { q, chat_id, status, assistant_id, limit } = req.query;
   const where = []; const params = [];
-  if (q) { where.push('content LIKE ?'); params.push(`%${q}%`); }
-  if (chat_id) { where.push('chat_id = ?'); params.push(chat_id); }
-  if (status) { where.push('status = ?'); params.push(status); }
+  if (q) { where.push('m.content LIKE ?'); params.push(`%${q}%`); }
+  if (chat_id) { where.push('m.chat_id = ?'); params.push(chat_id); }
+  if (status) { where.push('m.status = ?'); params.push(status); }
+  if (assistant_id !== undefined && assistant_id !== '') { where.push('m.assistant_id = ?'); params.push(Number(assistant_id)); }
+  // Join on both keys so the composite-key contacts table doesn't duplicate rows.
   const sql = `
     SELECT m.*, COALESCE(c.name, c.username) contact_name
-    FROM messages_log m LEFT JOIN contacts c ON c.chat_id = m.chat_id
+    FROM messages_log m LEFT JOIN contacts c ON c.chat_id = m.chat_id AND c.assistant_id = m.assistant_id
     ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
     ORDER BY m.id DESC LIMIT ?`;
   params.push(Math.min(Number(limit) || 100, 500));
