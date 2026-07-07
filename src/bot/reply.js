@@ -10,23 +10,23 @@ const { chat } = require('../llm/fallback');
 const { maybeRunTool } = require('../tools');
 const { delayPlan, splitBursts, sleep } = require('./human');
 
-function getContact(chatId) {
-  return db.prepare('SELECT * FROM contacts WHERE chat_id = ?').get(chatId);
+function getContact(chatId, assistantId = 0) {
+  return db.prepare('SELECT * FROM contacts WHERE chat_id = ? AND assistant_id = ?').get(chatId, assistantId);
 }
 
-function upsertContact(chatId, { username, name }) {
-  const existing = getContact(chatId);
+function upsertContact(chatId, { username, name }, assistantId = 0) {
+  const existing = getContact(chatId, assistantId);
   if (existing) {
     if ((username && username !== existing.username) || (name && name !== existing.name)) {
-      db.prepare("UPDATE contacts SET username = ?, name = ?, updated_at = datetime('now') WHERE chat_id = ?")
-        .run(username || existing.username, name || existing.name, chatId);
+      db.prepare("UPDATE contacts SET username = ?, name = ?, updated_at = datetime('now') WHERE chat_id = ? AND assistant_id = ?")
+        .run(username || existing.username, name || existing.name, chatId, assistantId);
     }
-    return { contact: getContact(chatId), isNew: false };
+    return { contact: getContact(chatId, assistantId), isNew: false };
   }
   db.prepare(
-    'INSERT INTO contacts (chat_id, username, name, auto_reply) VALUES (?, ?, ?, ?)'
-  ).run(chatId, username || null, name || null, config.getSetting('auto_reply_default') === 'on' ? 1 : 0);
-  return { contact: getContact(chatId), isNew: true };
+    'INSERT INTO contacts (chat_id, assistant_id, username, name, auto_reply) VALUES (?, ?, ?, ?, ?)'
+  ).run(chatId, assistantId, username || null, name || null, config.getSetting('auto_reply_default') === 'on' ? 1 : 0);
+  return { contact: getContact(chatId, assistantId), isNew: true };
 }
 
 function fillTemplate(template, vars) {
@@ -43,11 +43,13 @@ function parseJsonArray(text) {
   try { const v = JSON.parse(text || '[]'); return Array.isArray(v) ? v : []; } catch { return []; }
 }
 
-/** Build the full system prompt for a contact. `promptOverride` (per-assistant) wins over the global prompt. */
-function buildSystemPrompt(contact, extraContext, promptOverride = null) {
-  const tz = config.getSetting('timezone') || 'UTC';
+/** Build the full system prompt. `promptOverride` (per-assistant) wins over the
+ * global prompt; `S` is an optional per-assistant setting getter. */
+function buildSystemPrompt(contact, extraContext, promptOverride = null, S = null) {
+  const get = S || config.getSetting;
+  const tz = get('timezone') || 'UTC';
   const now = new Date();
-  const template = contact?.custom_prompt || promptOverride || config.getSetting('system_prompt');
+  const template = contact?.custom_prompt || promptOverride || get('system_prompt');
   const vars = {
     name: contact?.name || contact?.username || 'them',
     time: now.toLocaleTimeString('en-US', { timeZone: tz, hour: '2-digit', minute: '2-digit' }),
@@ -85,29 +87,29 @@ function buildSystemPrompt(contact, extraContext, promptOverride = null) {
     }
   }
 
-  const lang = config.getSetting('language');
+  const lang = get('language');
   prompt += lang === 'auto'
     ? `\n\nAlways reply in the same language the sender writes in.`
     : `\n\nAlways reply in ${lang}.`;
 
   // Style directives from settings.
-  const personaName = config.getSetting('persona_name');
+  const personaName = get('persona_name');
   if (personaName) prompt += `\nYou are replying as ${personaName}.`;
   const styleMap = {
     concise: 'Keep replies very short — one or two sentences max.',
     detailed: 'Give thorough, complete answers when the topic calls for it.',
   };
-  if (styleMap[config.getSetting('reply_style')]) prompt += `\n${styleMap[config.getSetting('reply_style')]}`;
+  if (styleMap[get('reply_style')]) prompt += `\n${styleMap[get('reply_style')]}`;
   const emojiMap = {
     none: 'Never use emoji.',
     light: 'Use emoji very sparingly — at most one occasionally.',
     heavy: 'Use emoji freely and expressively.',
   };
-  if (emojiMap[config.getSetting('emoji_usage')]) prompt += `\n${emojiMap[config.getSetting('emoji_usage')]}`;
-  const writingStyle = config.getSetting('writing_style');
+  if (emojiMap[get('emoji_usage')]) prompt += `\n${emojiMap[get('emoji_usage')]}`;
+  const writingStyle = get('writing_style');
   if (writingStyle) prompt += `\nStyle notes: ${writingStyle}`;
 
-  const maxLen = contact?.max_length || Number(config.getSetting('max_response_length')) || 800;
+  const maxLen = contact?.max_length || Number(get('max_response_length')) || 800;
   prompt += `\nKeep replies under ${maxLen} characters. Write like a real person texting — no markdown formatting.`;
 
   if (extraContext) prompt += `\n\nLive context you may use:\n${extraContext}`;
@@ -184,7 +186,10 @@ function replyPolicyBlock(incomingText) {
 async function generateReply(chatId, incomingText, { attachments = [], assistant = null } = {}) {
   const aid = assistant?.id || 0;
   const promptOverride = assistant?.systemPrompt || null;
-  const contact = getContact(chatId);
+  // Per-assistant settings overlay: assistant.settings wins over globals.
+  const S = key => (assistant?.settings && assistant.settings[key] !== undefined && assistant.settings[key] !== '')
+    ? assistant.settings[key] : config.getSetting(key);
+  const contact = getContact(chatId, aid);
   const start = Date.now();
 
   const blocked = replyPolicyBlock(incomingText);
@@ -231,7 +236,7 @@ async function generateReply(chatId, incomingText, { attachments = [], assistant
   if (toolResult) extraContext += (extraContext ? '\n\n' : '') + toolResult.context;
 
   const history = conversations.getHistory(chatId, undefined, aid);
-  const messages = [{ role: 'system', content: buildSystemPrompt(contact, extraContext, promptOverride) }];
+  const messages = [{ role: 'system', content: buildSystemPrompt(contact, extraContext, promptOverride, S) }];
   for (const h of history) {
     messages.push({ role: h.role === 'assistant' ? 'assistant' : 'user', content: h.content });
   }
@@ -241,11 +246,11 @@ async function generateReply(chatId, incomingText, { attachments = [], assistant
     lastMsg.content = [{ type: 'text', text: typeof lastMsg.content === 'string' ? lastMsg.content : incomingText }, ...attachments];
   }
 
-  const maxLen = contact?.max_length || Number(config.getSetting('max_response_length')) || 800;
+  const maxLen = contact?.max_length || Number(S('max_response_length')) || 800;
   const result = await chat(messages, {
     maxTokens: Math.min(2048, Math.ceil(maxLen / 2.5)),
-    temperature: Number(config.getSetting('temperature')) || 0.8,
-    topP: Number(config.getSetting('top_p')) || 1,
+    temperature: Number(S('temperature')) || 0.8,
+    topP: Number(S('top_p')) || 1,
     needsVision: attachments.some(a => a.type === 'image'),
   });
 

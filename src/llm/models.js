@@ -93,4 +93,19 @@ async function listModels(providerId) {
   return models;
 }
 
-module.exports = { listModels };
+/** Aggregate configured providers into one catalog (OpenRouter-style browse-all). */
+async function listAll() {
+  const { isConfigured } = require('./providers');
+  const ids = Object.keys(PROVIDERS).filter(isConfigured);
+  const out = [];
+  await Promise.all(ids.map(async id => {
+    try {
+      const models = await listModels(id);
+      for (const m of models) out.push({ ...m, provider: id });
+    } catch { /* skip a failing provider */ }
+  }));
+  out.sort((a, b) => (Number(b.free || 0) - Number(a.free || 0)) || String(a.provider).localeCompare(b.provider) || String(a.id).localeCompare(String(b.id)));
+  return out;
+}
+
+module.exports = { listModels, listAll };

@@ -11,7 +11,9 @@ function list() {
 }
 
 function descriptor(row) {
-  return { id: row.id, name: row.name, token: row.bot_token, ownerId: row.owner_user_id, systemPrompt: row.system_prompt || null };
+  let settings = {};
+  try { settings = JSON.parse(row.settings_json || '{}'); } catch { /* ignore */ }
+  return { id: row.id, name: row.name, token: row.bot_token, ownerId: row.owner_user_id, systemPrompt: row.system_prompt || null, settings };
 }
 
 async function start(id) {

@@ -998,37 +998,45 @@ $('#asst-save').addEventListener('click', async () => {
 
 // ---------- MODEL BROWSER ----------
 let browseModels = [];
-async function openModelBrowser() {
+let browseAll = false;
+async function openModelBrowser(all) {
+  browseAll = all;
   const provider = $('#primary-provider').value;
-  $('#models-title').textContent = `${provider} models`;
+  $('#models-title').textContent = all ? 'All configured providers' : `${provider} models`;
+  $('#models-search').value = '';
   $('#models-list').innerHTML = '<div class="hint"><span class="spinner"></span> Loading live catalog…</div>';
   $('#models-modal').style.display = 'flex';
   try {
-    browseModels = await api('/models/' + provider);
+    browseModels = await api(all ? '/models' : '/models/' + provider);
     renderModels('');
   } catch (e) { $('#models-list').innerHTML = `<p class="hint" style="color:var(--red)">${esc(e.message)}</p>`; }
 }
 function renderModels(filter) {
-  const rows = browseModels.filter(m => !filter || m.id.toLowerCase().includes(filter.toLowerCase()));
-  $('#models-list').innerHTML = rows.length ? rows.slice(0, 300).map(m => `
-    <div class="model-row" data-model="${esc(m.id)}">
+  const rows = browseModels.filter(m => !filter || m.id.toLowerCase().includes(filter.toLowerCase()) || (m.provider || '').includes(filter.toLowerCase()));
+  $('#models-list').innerHTML = rows.length ? rows.slice(0, 400).map(m => `
+    <div class="model-row">
       <div class="model-info">
-        <div class="model-id">${esc(m.id)} ${m.free ? '<span class="badge badge-green">free</span>' : ''} ${m.vision ? '<span class="badge badge-blue">vision</span>' : ''}</div>
+        <div class="model-id">${m.provider ? `<span class="badge badge-gray">${esc(m.provider)}</span> ` : ''}${esc(m.id)} ${m.free ? '<span class="badge badge-green">free</span>' : ''} ${m.vision ? '<span class="badge badge-blue">vision</span>' : ''}</div>
         ${m.context ? `<div class="hint">${(m.context/1000).toFixed(0)}K ctx${m.promptCost ? ` · $${m.promptCost.toFixed(2)}/$${(m.completionCost||0).toFixed(2)} per 1M` : ''}</div>` : ''}
       </div>
-      <button class="btn btn-sm btn-primary" data-pick-model="${esc(m.id)}">Use</button>
+      <button class="btn btn-sm btn-primary" data-pick-model="${esc(m.id)}" data-pick-provider="${esc(m.provider || '')}">Use</button>
     </div>`).join('') : '<p class="hint">No models match.</p>';
   $$('[data-pick-model]').forEach(b => b.addEventListener('click', () => {
     const id = b.dataset.pickModel;
-    // Ensure the option exists then select it.
+    const prov = b.dataset.pickProvider;
+    if (prov) { // all-providers mode: also switch the primary provider
+      const psel = $('#primary-provider');
+      if ([...psel.options].some(o => o.value === prov)) { psel.value = prov; fillModels($('#primary-provider'), $('#primary-model')); }
+    }
     const sel = $('#primary-model');
     if (![...sel.options].some(o => o.value === id)) sel.add(new Option(id, id));
     sel.value = id;
     $('#models-modal').style.display = 'none';
-    toast(`Selected ${id} — click Save routing to apply`);
+    toast(`Selected ${prov ? prov + '/' : ''}${id} — click Save routing to apply`);
   }));
 }
-$('#browse-models').addEventListener('click', openModelBrowser);
+$('#browse-models').addEventListener('click', () => openModelBrowser(false));
+$('#browse-all-models').addEventListener('click', () => openModelBrowser(true));
 $('#models-close').addEventListener('click', () => $('#models-modal').style.display = 'none');
 $('#models-search').addEventListener('input', () => renderModels($('#models-search').value));
 
@@ -1117,13 +1125,14 @@ async function loadSecurity() {
   }));
   $$('[data-user-edit]').forEach(b => b.addEventListener('click', () => openUser(users.find(u => u.id == b.dataset.userEdit))));
 
+  const geo = s => `${s.flag ? s.flag + ' ' : ''}${esc(s.ip)}${s.country ? ` <span class="hint">${esc(s.country)}</span>` : ''}`;
   $('#sessions-table tbody').innerHTML = sessions.length ? sessions.map(s => `
-    <tr><td>${esc(s.username)} ${s.current ? '<span class="badge badge-blue">you</span>' : ''}</td><td>${esc(s.ip)}</td><td>${fmtTime(s.last_seen)}</td></tr>`).join('')
+    <tr><td>${esc(s.username)} ${s.current ? '<span class="badge badge-blue">you</span>' : ''}</td><td>${geo(s)}</td><td>${fmtTime(s.last_seen)}</td></tr>`).join('')
     : '<tr><td colspan="3" class="hint">No active sessions</td></tr>';
 
   $('#attempts-table tbody').innerHTML = attempts.length ? attempts.map(a => `
     <tr>
-      <td>${fmtTime(a.created_at)}</td><td>${esc(a.username)}</td><td>${esc(a.ip)}</td>
+      <td>${fmtTime(a.created_at)}</td><td>${esc(a.username)}</td><td>${geo(a)}</td>
       <td><span class="badge badge-${a.success ? 'green' : 'red'}">${a.success ? 'success' : 'failed'}</span></td>
       <td>${a.success ? '' : `<button class="btn btn-sm btn-danger" data-quickban="${esc(a.ip)}">Ban IP</button>`}</td>
     </tr>`).join('') : '<tr><td colspan="5" class="hint">No login attempts</td></tr>';

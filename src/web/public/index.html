@@ -259,7 +259,10 @@
             <select id="primary-model"></select>
           </label>
           <label>Browse live catalog
-            <button class="btn" id="browse-models" type="button"><svg class="ic ic-sm"><use href="#i-search"/></svg> Browse models</button>
+            <div class="btn-row" style="margin:0">
+              <button class="btn" id="browse-models" type="button"><svg class="ic ic-sm"><use href="#i-search"/></svg> This provider</button>
+              <button class="btn" id="browse-all-models" type="button"><svg class="ic ic-sm"><use href="#i-cpu"/></svg> All providers</button>
+            </div>
           </label>
           <label>Load balancing
             <select id="load-balancing"><option value="off">Off</option><option value="on">On (round-robin healthy)</option></select>

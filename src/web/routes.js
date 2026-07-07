@@ -164,33 +164,37 @@ const CONTACT_FIELDS = ['username', 'name', 'relationship', 'tone', 'gender', 'r
 
 router.get('/contacts', wrap((req, res) => {
   const q = req.query.q;
+  const aid = Number(req.query.assistant_id) || 0;
   const rows = q
-    ? db.prepare('SELECT * FROM contacts WHERE name LIKE ? OR username LIKE ? OR chat_id LIKE ? ORDER BY priority DESC, updated_at DESC')
-        .all(`%${q}%`, `%${q}%`, `%${q}%`)
-    : db.prepare('SELECT * FROM contacts ORDER BY priority DESC, updated_at DESC').all();
+    ? db.prepare('SELECT * FROM contacts WHERE assistant_id = ? AND (name LIKE ? OR username LIKE ? OR chat_id LIKE ?) ORDER BY priority DESC, updated_at DESC')
+        .all(aid, `%${q}%`, `%${q}%`, `%${q}%`)
+    : db.prepare('SELECT * FROM contacts WHERE assistant_id = ? ORDER BY priority DESC, updated_at DESC').all(aid);
   res.json(rows);
 }));
 
 router.post('/contacts', wrap((req, res) => {
   const b = req.body;
   if (!b.chat_id) return res.status(400).json({ error: 'chat_id required' });
-  const cols = ['chat_id', ...CONTACT_FIELDS.filter(f => b[f] !== undefined)];
-  const vals = cols.map(c => b[c]);
+  const aid = Number(b.assistant_id) || 0;
+  const cols = ['chat_id', 'assistant_id', ...CONTACT_FIELDS.filter(f => b[f] !== undefined)];
+  const vals = cols.map(c => (c === 'assistant_id' ? aid : b[c]));
   db.prepare(`INSERT INTO contacts (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`).run(...vals);
   res.json({ ok: true });
 }));
 
 router.put('/contacts/:chatId', wrap((req, res) => {
   const b = req.body;
+  const aid = Number(b.assistant_id) || 0;
   const sets = CONTACT_FIELDS.filter(f => b[f] !== undefined);
   if (!sets.length) return res.status(400).json({ error: 'no fields to update' });
-  const sql = `UPDATE contacts SET ${sets.map(f => `${f} = ?`).join(', ')}, updated_at = datetime('now') WHERE chat_id = ?`;
-  db.prepare(sql).run(...sets.map(f => b[f]), req.params.chatId);
+  const sql = `UPDATE contacts SET ${sets.map(f => `${f} = ?`).join(', ')}, updated_at = datetime('now') WHERE chat_id = ? AND assistant_id = ?`;
+  db.prepare(sql).run(...sets.map(f => b[f]), req.params.chatId, aid);
   res.json({ ok: true });
 }));
 
 router.delete('/contacts/:chatId', wrap((req, res) => {
-  db.prepare('DELETE FROM contacts WHERE chat_id = ?').run(req.params.chatId);
+  const aid = Number(req.query.assistant_id) || 0;
+  db.prepare('DELETE FROM contacts WHERE chat_id = ? AND assistant_id = ?').run(req.params.chatId, aid);
   res.json({ ok: true });
 }));
 
@@ -403,6 +407,7 @@ router.delete('/assistants/:id', wrap(async (req, res) => {
 
 // ---------- Live model catalog ----------
 const models = require('../llm/models');
+router.get('/models', wrap(async (req, res) => res.json(await models.listAll())));
 router.get('/models/:provider', wrap(async (req, res) => {
   try { res.json(await models.listModels(req.params.provider)); }
   catch (err) { res.status(500).json({ error: err.message }); }
@@ -475,13 +480,26 @@ router.delete('/users/:id', wrap((req, res) => {
 }));
 
 // ---------- Security: login attempts, sessions, IP bans, audit ----------
-router.get('/security/attempts', wrap((req, res) => {
-  res.json(db.prepare('SELECT * FROM login_attempts ORDER BY id DESC LIMIT 100').all());
+const geoip = require('./geoip');
+
+async function withGeo(rows) {
+  const uniqueIps = [...new Set(rows.map(r => r.ip).filter(Boolean))];
+  const geo = {};
+  await Promise.all(uniqueIps.map(async ip => { geo[ip] = await geoip.lookup(ip); }));
+  return rows.map(r => {
+    const g = geo[r.ip] || { code: '', country: '' };
+    return { ...r, country: g.country, countryCode: g.code, flag: geoip.flag(g.code) };
+  });
+}
+
+router.get('/security/attempts', wrap(async (req, res) => {
+  res.json(await withGeo(db.prepare('SELECT * FROM login_attempts ORDER BY id DESC LIMIT 100').all()));
 }));
-router.get('/security/sessions', wrap((req, res) => {
-  res.json(db.prepare(`SELECT s.token, u.username, s.ip, s.user_agent, s.created_at, s.last_seen, s.expires_at
+router.get('/security/sessions', wrap(async (req, res) => {
+  const rows = db.prepare(`SELECT s.token, u.username, s.ip, s.user_agent, s.created_at, s.last_seen, s.expires_at
     FROM sessions s JOIN admin_users u ON u.id = s.user_id WHERE s.expires_at > datetime('now') ORDER BY s.last_seen DESC`).all()
-    .map(s => ({ ...s, token: s.token.slice(0, 8) + '…', current: req.user && s.token.startsWith(req.user.token?.slice(0, 8) || '\0') })));
+    .map(s => ({ ...s, current: req.user && s.token.startsWith(req.user.token?.slice(0, 8) || '\0'), token: s.token.slice(0, 8) + '…' }));
+  res.json(await withGeo(rows));
 }));
 router.get('/security/audit', wrap((req, res) => {
   res.json(db.prepare('SELECT * FROM audit_log ORDER BY id DESC LIMIT 150').all());

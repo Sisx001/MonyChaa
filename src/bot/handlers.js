@@ -127,7 +127,7 @@ function makeBusinessHandler(entry) {
       events.broadcast('stats', { queueDepth: totalQueueDepth });
       try {
         if (msg.forward_origin && config.getSetting('ignore_forwarded') === 'on') return;
-        const { contact, isNew } = upsertContact(chatId, { username: msg.from.username, name });
+        const { contact, isNew } = upsertContact(chatId, { username: msg.from.username, name }, aid);
         if (isNew) events.broadcast('contact', { chatId, name, username: msg.from.username || null });
 
         if (config.getSetting('auto_read') === 'on' && connId) {
@@ -332,7 +332,7 @@ function createBot() {
     logger.warn('TELEGRAM_BOT_TOKEN not set — primary bot disabled, web panel still available');
     return null;
   }
-  const bot = buildBot({ id: 0, name: 'primary', token: env.TELEGRAM_BOT_TOKEN, ownerId: env.OWNER_USER_ID, systemPrompt: null });
+  const bot = buildBot({ id: 0, name: 'primary', token: env.TELEGRAM_BOT_TOKEN, ownerId: env.OWNER_USER_ID, systemPrompt: null, settings: {} });
   bot.start({ allowed_updates: ALLOWED_UPDATES, onStart: info => logger.info(`Primary bot @${info.username} polling`) })
     .catch(err => logError('bot_start', err));
   return bot;

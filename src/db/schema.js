@@ -243,6 +243,33 @@ for (const table of ['contacts', 'conversations', 'memories', 'messages_log', 's
   }
 }
 db.exec('CREATE INDEX IF NOT EXISTS idx_conv_assistant ON conversations(assistant_id, chat_id, id)');
+
+// Contacts need a composite (chat_id, assistant_id) key so the same chat_id can
+// exist independently under different assistants. Rebuild once if still single-PK.
+const contactPk = db.prepare('PRAGMA table_info(contacts)').all().filter(c => c.pk).map(c => c.name);
+if (contactPk.length === 1 && contactPk[0] === 'chat_id') {
+  db.exec(`
+    CREATE TABLE contacts_new (
+      chat_id INTEGER,
+      assistant_id INTEGER DEFAULT 0,
+      username TEXT, name TEXT, relationship TEXT,
+      tone TEXT DEFAULT 'casual', gender TEXT, rules TEXT DEFAULT '[]',
+      auto_reply INTEGER DEFAULT 1, delay_multiplier REAL DEFAULT 1.0,
+      max_length INTEGER, blocked_topics TEXT DEFAULT '[]', priority INTEGER DEFAULT 0,
+      learned_tone TEXT, custom_prompt TEXT, notes TEXT, voice_replies INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (chat_id, assistant_id)
+    );
+    INSERT INTO contacts_new (chat_id, assistant_id, username, name, relationship, tone, gender,
+      rules, auto_reply, delay_multiplier, max_length, blocked_topics, priority, learned_tone,
+      custom_prompt, notes, voice_replies, created_at, updated_at)
+      SELECT chat_id, COALESCE(assistant_id,0), username, name, relationship, tone, gender,
+      rules, auto_reply, delay_multiplier, max_length, blocked_topics, priority, learned_tone,
+      custom_prompt, notes, COALESCE(voice_replies,0), created_at, updated_at FROM contacts;
+    DROP TABLE contacts;
+    ALTER TABLE contacts_new RENAME TO contacts;
+  `);
+}
 db.exec('CREATE INDEX IF NOT EXISTS idx_contacts_assistant ON contacts(assistant_id)');
 
 bindDb(db);

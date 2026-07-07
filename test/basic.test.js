@@ -260,3 +260,33 @@ test('model catalog: static fallback returns known models', async () => {
   assert.ok(Array.isArray(models) && models.length > 0);
   assert.ok(models.every(m => m.id));
 });
+
+test('contacts: composite (chat_id, assistant_id) key allows same chat under two assistants', () => {
+  const { upsertContact, getContact } = require('../src/bot/reply');
+  upsertContact(4242, { name: 'Primary View' }, 0);
+  upsertContact(4242, { name: 'Assistant-3 View' }, 3);
+  assert.strictEqual(getContact(4242, 0).name, 'Primary View');
+  assert.strictEqual(getContact(4242, 3).name, 'Assistant-3 View');
+  const db = require('../src/db/schema');
+  db.prepare('DELETE FROM contacts WHERE chat_id = 4242').run();
+});
+
+test('per-assistant settings overlay wins over globals in buildSystemPrompt', () => {
+  const { buildSystemPrompt } = require('../src/bot/reply');
+  const config = require('../src/config');
+  config.setSetting('emoji_usage', 'none');
+  const S = key => (key === 'emoji_usage' ? 'heavy' : config.getSetting(key));
+  const withOverlay = buildSystemPrompt(null, null, 'Base prompt.', S);
+  const withoutOverlay = buildSystemPrompt(null, null, 'Base prompt.', null);
+  assert.ok(withOverlay.includes('emoji freely'), 'overlay emoji directive missing');
+  assert.ok(withoutOverlay.includes('Never use emoji'), 'global emoji directive missing');
+});
+
+test('geoip: flag emoji + private IP detection', () => {
+  const geo = require('../src/web/geoip');
+  assert.strictEqual(geo.flag('US'), '🇺🇸');
+  assert.strictEqual(geo.flag(''), '');
+  assert.ok(geo.isPrivate('127.0.0.1'));
+  assert.ok(geo.isPrivate('192.168.1.5'));
+  assert.ok(!geo.isPrivate('8.8.8.8'));
+});
