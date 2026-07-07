@@ -241,7 +241,7 @@
         </div>
       </div>
       <div class="card" id="diff-card" style="display:none">
-        <div class="row-between"><h3>Diff vs current</h3><button class="btn btn-sm" onclick="document.getElementById('diff-card').style.display='none'"><svg class="ic ic-sm"><use href="#i-x"/></svg></button></div>
+        <div class="row-between"><h3>Diff vs current</h3><button class="btn btn-sm" id="diff-close"><svg class="ic ic-sm"><use href="#i-x"/></svg></button></div>
         <div id="diff-view" class="diff-view"></div>
       </div>
     </section>
@@ -788,8 +788,19 @@
     <label class="full">System prompt (this assistant's persona)
       <textarea id="asst-prompt" rows="5" placeholder="You are…"></textarea>
     </label>
+    <details class="full">
+      <summary>Per-assistant overrides (optional — leave blank to inherit globals)</summary>
+      <div class="form-grid" style="margin-top:8px">
+        <label>Temperature <input id="asst-temperature" type="number" step="0.1" min="0" max="2" placeholder="inherit"></label>
+        <label>Reply style <select id="asst-reply_style"><option value="">inherit</option><option value="concise">Concise</option><option value="balanced">Balanced</option><option value="detailed">Detailed</option></select></label>
+        <label>Emoji usage <select id="asst-emoji_usage"><option value="">inherit</option><option value="none">None</option><option value="light">Light</option><option value="natural">Natural</option><option value="heavy">Heavy</option></select></label>
+        <label>Reply language <input id="asst-language" placeholder="inherit / English / …"></label>
+        <label>Max response length <input id="asst-max_response_length" type="number" placeholder="inherit"></label>
+        <label>Persona name <input id="asst-persona_name" placeholder="inherit"></label>
+      </div>
+    </details>
     <div class="btn-row">
-      <button class="btn btn-primary" id="asst-save"><svg class="ic ic-sm"><use href="#i-save"/></svg> Save & start</button>
+      <button class="btn btn-primary" id="asst-save"><svg class="ic ic-sm"><use href="#i-save"/></svg> Save &amp; start</button>
     </div>
   </div>
 </div>

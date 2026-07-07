@@ -6,8 +6,13 @@ const logger = require('./logger');
 const { buildBot, bots, ALLOWED_UPDATES } = require('./bot/handlers');
 
 function list() {
-  return db.prepare('SELECT id, name, owner_user_id, admin_user_id, enabled, status, username, last_error, created_at FROM assistants ORDER BY id').all()
-    .map(a => ({ ...a, running: bots.has(a.id) }));
+  return db.prepare('SELECT id, name, owner_user_id, admin_user_id, enabled, status, username, last_error, system_prompt, settings_json, bot_token, created_at FROM assistants ORDER BY id').all()
+    .map(a => {
+      let settings = {};
+      try { settings = JSON.parse(a.settings_json || '{}'); } catch { /* ignore */ }
+      const { bot_token, settings_json, ...rest } = a;
+      return { ...rest, settings, has_token: Boolean(bot_token), running: bots.has(a.id) };
+    });
 }
 
 function descriptor(row) {
@@ -58,7 +63,7 @@ function create({ name, bot_token, owner_user_id, admin_user_id, system_prompt }
 }
 
 function update(id, fields) {
-  const allowed = ['name', 'bot_token', 'owner_user_id', 'admin_user_id', 'system_prompt', 'enabled'];
+  const allowed = ['name', 'bot_token', 'owner_user_id', 'admin_user_id', 'system_prompt', 'settings_json', 'enabled'];
   const sets = allowed.filter(f => fields[f] !== undefined);
   if (!sets.length) return;
   db.prepare(`UPDATE assistants SET ${sets.map(f => `${f} = ?`).join(', ')} WHERE id = ?`)

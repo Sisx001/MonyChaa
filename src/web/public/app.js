@@ -282,6 +282,7 @@ $('#save-version').addEventListener('click', async () => {
   toast('Version saved');
   loadVersions();
 });
+$('#diff-close')?.addEventListener('click', () => $('#diff-card').style.display = 'none');
 $('#save-context').addEventListener('click', async () => {
   const body = {};
   for (const el of $$('[data-ctx-setting]')) body[el.dataset.ctxSetting] = el.value;
@@ -962,10 +963,13 @@ async function loadAssistants() {
         ${a.running
           ? `<button class="btn btn-sm" data-asst-stop="${a.id}"><svg class="ic ic-sm"><use href="#i-power"/></svg> Stop</button>`
           : `<button class="btn btn-sm btn-primary" data-asst-start="${a.id}"><svg class="ic ic-sm"><use href="#i-play"/></svg> Start</button>`}
+        <button class="btn btn-sm" data-asst-edit="${a.id}"><svg class="ic ic-sm"><use href="#i-edit"/></svg> Edit</button>
         <button class="btn btn-sm btn-danger" data-asst-del="${a.id}"><svg class="ic ic-sm"><use href="#i-trash"/></svg></button>
       </div>
     </div>`).join('')
     : '<p class="hint">No additional assistants. The primary bot runs from your .env token. Add one to run a second bot with its own brain.</p>';
+  window._assistants = rows;
+  $$('[data-asst-edit]').forEach(b => b.addEventListener('click', () => openAssistant(rows.find(a => a.id == b.dataset.asstEdit))));
   $$('[data-asst-start]').forEach(b => b.addEventListener('click', async () => {
     const r = await api(`/assistants/${b.dataset.asstStart}/start`, { method: 'POST' });
     toast(r.ok ? 'Assistant started' : r.error, r.ok); loadAssistants();
@@ -979,18 +983,36 @@ async function loadAssistants() {
     toast('Assistant deleted'); loadAssistants();
   }));
 }
-$('#asst-add').addEventListener('click', () => {
-  $('#asst-name').value = ''; $('#asst-token').value = ''; $('#asst-owner').value = ''; $('#asst-prompt').value = '';
+const ASST_OVERRIDES = ['temperature', 'reply_style', 'emoji_usage', 'language', 'max_response_length', 'persona_name'];
+let editingAssistantId = null;
+function openAssistant(a) {
+  editingAssistantId = a?.id || null;
+  $('#asst-modal-title').textContent = a ? `Edit: ${a.name}` : 'New assistant';
+  $('#asst-name').value = a?.name || '';
+  $('#asst-token').value = '';
+  $('#asst-token').placeholder = a?.has_token ? '•••••• (leave blank to keep)' : '123456:ABC…';
+  $('#asst-owner').value = a?.owner_user_id || '';
+  $('#asst-prompt').value = a?.system_prompt || '';
+  for (const k of ASST_OVERRIDES) $('#asst-' + k).value = a?.settings?.[k] ?? '';
   $('#asst-modal').style.display = 'flex';
-});
+}
+$('#asst-add').addEventListener('click', () => openAssistant(null));
 $('#asst-modal-close').addEventListener('click', () => $('#asst-modal').style.display = 'none');
 $('#asst-save').addEventListener('click', async () => {
+  const settings = {};
+  for (const k of ASST_OVERRIDES) { const v = $('#asst-' + k).value.trim(); if (v) settings[k] = v; }
+  const body = {
+    name: $('#asst-name').value,
+    owner_user_id: $('#asst-owner').value || null,
+    system_prompt: $('#asst-prompt').value || null,
+    settings_json: JSON.stringify(settings),
+  };
+  const token = $('#asst-token').value.trim();
+  if (token) body.bot_token = token;
   try {
-    await api('/assistants', { method: 'POST', body: {
-      name: $('#asst-name').value, bot_token: $('#asst-token').value.trim() || null,
-      owner_user_id: $('#asst-owner').value || null, system_prompt: $('#asst-prompt').value || null,
-    } });
-    toast('Assistant created');
+    if (editingAssistantId) await api('/assistants/' + editingAssistantId, { method: 'PUT', body });
+    else await api('/assistants', { method: 'POST', body });
+    toast('Assistant saved');
     $('#asst-modal').style.display = 'none';
     loadAssistants();
   } catch (e) { toast(e.message, false); }

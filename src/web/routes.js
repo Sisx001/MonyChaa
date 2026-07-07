@@ -372,23 +372,34 @@ const auth = require('./auth');
 
 router.get('/assistants', wrap((req, res) => res.json(assistants.list())));
 router.post('/assistants', wrap(async (req, res) => {
-  const { name, bot_token, owner_user_id, system_prompt } = req.body;
+  const { name, bot_token, owner_user_id, system_prompt, settings_json } = req.body;
   if (!name) return res.status(400).json({ error: 'name required' });
+  if (settings_json) { try { JSON.parse(settings_json); } catch { return res.status(400).json({ error: 'settings_json must be valid JSON' }); } }
   const id = assistants.create({
     name, bot_token: bot_token || null,
     owner_user_id: owner_user_id ? Number(owner_user_id) : null,
     admin_user_id: req.user?.id || null, system_prompt: system_prompt || null,
   });
+  if (settings_json) assistants.update(id, { settings_json });
   if (bot_token) { try { await assistants.start(id); } catch { /* reported via status */ } }
   auth.audit(req, 'create_assistant', name, req.user);
   res.json({ ok: true, id });
 }));
 router.put('/assistants/:id', wrap(async (req, res) => {
-  assistants.update(Number(req.params.id), req.body || {});
-  // Restart to apply token/prompt changes if it was running.
-  if (req.body.bot_token !== undefined || req.body.system_prompt !== undefined) {
-    try { await assistants.stop(Number(req.params.id)); if (req.body.enabled !== 0) await assistants.start(Number(req.params.id)); } catch { /* status reflects it */ }
+  const id = Number(req.params.id);
+  const b = req.body || {};
+  if (b.settings_json) { try { JSON.parse(b.settings_json); } catch { return res.status(400).json({ error: 'settings_json must be valid JSON' }); } }
+  const fields = {};
+  for (const f of ['name', 'bot_token', 'owner_user_id', 'system_prompt', 'settings_json', 'enabled']) {
+    if (b[f] !== undefined) fields[f] = f === 'owner_user_id' && b[f] ? Number(b[f]) : b[f];
   }
+  assistants.update(id, fields);
+  // Restart to apply token/prompt/settings changes if it has a token.
+  const row = db.prepare('SELECT bot_token, enabled FROM assistants WHERE id = ?').get(id);
+  if (row?.bot_token) {
+    try { await assistants.stop(id); if (row.enabled) await assistants.start(id); } catch { /* status reflects it */ }
+  }
+  auth.audit(req, 'update_assistant', String(id), req.user);
   res.json({ ok: true });
 }));
 router.post('/assistants/:id/start', wrap(async (req, res) => {
