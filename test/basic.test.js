@@ -129,6 +129,46 @@ test('maybeSummarize never runs with a negative excess (SQLite LIMIT trap)', asy
   config.setSetting('history_limit', '30');
 });
 
+test('skills: trigger matching, always-on, toggle, catalog install', () => {
+  const skills = require('../src/skills');
+  skills.upsert({ name: 'T-Test Skill', description: 'x', triggers: ['pineapple'], content: 'Do pineapple things.' });
+  skills.upsert({ name: 'T-Always Skill', description: 'x', triggers: [], content: 'Always be kind.' });
+
+  const matched = skills.activeFor('I love PINEAPPLE pizza');
+  assert.ok(matched.includes('T-Test Skill'), 'trigger skill not matched');
+  assert.ok(matched.includes('T-Always Skill'), 'always-on skill missing');
+
+  const unmatched = skills.activeFor('nothing relevant here');
+  assert.ok(!unmatched.includes('T-Test Skill'), 'trigger skill matched wrongly');
+  assert.ok(unmatched.includes('T-Always Skill'), 'always-on skill missing on unrelated msg');
+
+  const row = skills.list().find(s => s.name === 'T-Test Skill');
+  skills.setEnabled(row.id, 0);
+  assert.ok(!skills.activeFor('pineapple').includes('T-Test Skill'), 'disabled skill still active');
+
+  skills.installFromCatalog('Boundary Keeper');
+  assert.ok(skills.list().some(s => s.name === 'Boundary Keeper' && s.source === 'catalog'));
+
+  for (const s of skills.list().filter(s => s.name.startsWith('T-') || s.name === 'Boundary Keeper')) skills.remove(s.id);
+});
+
+test('skills respect the global skills_enabled switch', () => {
+  const skills = require('../src/skills');
+  skills.upsert({ name: 'T-Switch', triggers: [], content: 'x' });
+  config.setSetting('skills_enabled', 'off');
+  assert.strictEqual(skills.activeFor('anything'), '');
+  config.setSetting('skills_enabled', 'on');
+  assert.ok(skills.activeFor('anything').includes('T-Switch'));
+  skills.remove(skills.list().find(s => s.name === 'T-Switch').id);
+});
+
+test('mcp: tool registry empty by default, qualified name validation', async () => {
+  const mcp = require('../src/mcp');
+  assert.deepStrictEqual(mcp.allTools(), []);
+  await assert.rejects(() => mcp.callQualified('not-mcp-format', {}), /bad MCP tool name/);
+  await assert.rejects(() => mcp.callQualified('mcp:ghost:tool', {}), /not found or disabled/);
+});
+
 test('conversation history add/get/clear', () => {
   const conv = require('../src/memory/conversations');
   conv.addMessage(888, 'user', 'hi');

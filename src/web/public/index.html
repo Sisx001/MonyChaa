@@ -24,6 +24,7 @@
       <button class="nav-btn" data-tab="memory">🧠 Memory</button>
       <button class="nav-btn" data-tab="contacts">👥 Contacts</button>
       <button class="nav-btn" data-tab="tools">🧰 Tools & Plugins</button>
+      <button class="nav-btn" data-tab="library">✨ Library</button>
       <button class="nav-btn" data-tab="logs">📜 Logs</button>
       <button class="nav-btn" data-tab="settings">⚙️ Settings</button>
     </nav>
@@ -33,6 +34,23 @@
   </aside>
 
   <main class="main">
+    <!-- Quick-toggle topbar -->
+    <div class="topbar">
+      <label class="switch" title="Master switch — off records messages but never replies">
+        <input type="checkbox" id="qt-bot" data-qt="bot_enabled"><span class="slider"></span>
+        <span class="switch-label">🤖 Auto-reply</span>
+      </label>
+      <label class="switch" title="Away mode — sends your away message instead">
+        <input type="checkbox" id="qt-away" data-qt="away_mode"><span class="slider"></span>
+        <span class="switch-label">🌙 Away</span>
+      </label>
+      <label class="switch" title="Human typing simulation">
+        <input type="checkbox" id="qt-typing" data-qt="typing_simulation"><span class="slider"></span>
+        <span class="switch-label">⌨️ Typing sim</span>
+      </label>
+      <div class="topbar-right" id="topbar-model"></div>
+    </div>
+
     <!-- ============ DASHBOARD ============ -->
     <section id="tab-dashboard" class="tab active">
       <h1>Dashboard</h1>
@@ -200,6 +218,14 @@
     <section id="tab-contacts" class="tab">
       <h1>Contacts</h1>
       <div class="card">
+        <h3>@username → chat_id resolver</h3>
+        <div class="input-row">
+          <input id="resolve-input" placeholder="@username" style="max-width:240px">
+          <button class="btn" id="resolve-btn">Resolve</button>
+          <span class="hint" id="resolve-result" style="margin:0"></span>
+        </div>
+      </div>
+      <div class="card">
         <div class="row-between">
           <input id="contact-search" class="search-input" placeholder="🔍 Search name, @username, chat_id…" style="max-width:340px">
           <div class="btn-row">
@@ -279,6 +305,46 @@
       </div>
     </section>
 
+    <!-- ============ LIBRARY ============ -->
+    <section id="tab-library" class="tab">
+      <h1>Library</h1>
+      <div class="card">
+        <div class="row-between">
+          <h3>Installed skills</h3>
+          <div class="btn-row">
+            <button class="btn" id="skill-learn">🎓 Learn from my chats</button>
+            <button class="btn btn-primary" id="skill-add">＋ New skill</button>
+          </div>
+        </div>
+        <p class="hint">Skills are instruction packs injected into the prompt. Keyword triggers activate them contextually; no triggers = always on. Self-learned skills arrive disabled for your review.</p>
+        <div id="skills-list"></div>
+      </div>
+      <div class="card">
+        <h3>Starter catalog — one-click install</h3>
+        <div class="catalog-grid" id="catalog-grid"></div>
+      </div>
+      <div class="card">
+        <h3>GitHub skill search — one-click install</h3>
+        <p class="hint">Search GitHub for prompt/skill repos. Install distills the README into a skill automatically.</p>
+        <div class="input-row">
+          <input id="gh-query" placeholder="🔍 e.g. sales assistant prompt, customer support agent…" style="flex:2">
+          <button class="btn btn-primary" id="gh-search">Search GitHub</button>
+        </div>
+        <div id="gh-results"></div>
+      </div>
+      <div class="card">
+        <div class="row-between"><h3>MCP servers</h3></div>
+        <p class="hint">Connect any HTTP MCP (Model Context Protocol) server — its tools are auto-discovered and become available to the bot as <code>mcp:server:tool</code>.</p>
+        <div class="input-row">
+          <input id="mcp-name" placeholder="name (e.g. my-tools)" style="max-width:170px">
+          <input id="mcp-url" placeholder="https://host/mcp endpoint URL" style="flex:2">
+          <input id="mcp-headers" placeholder='{"Authorization":"Bearer …"} (optional)' style="flex:1">
+          <button class="btn btn-primary" id="mcp-add">＋ Add & connect</button>
+        </div>
+        <div id="mcp-list"></div>
+      </div>
+    </section>
+
     <!-- ============ LOGS ============ -->
     <section id="tab-logs" class="tab">
       <h1>Logs</h1>
@@ -323,10 +389,26 @@
         </div>
       </div>
       <div class="card">
-        <h3>Typing simulation</h3>
+        <h3>Typing simulation & behavior</h3>
         <div class="form-grid">
+          <label>Bot master switch <select data-setting="bot_enabled"><option value="on">On</option><option value="off">Off (record only)</option></select></label>
           <label>Typing simulation <select data-setting="typing_simulation"><option value="on">On</option><option value="off">Off</option></select></label>
           <label>Typing speed <select data-setting="typing_speed"><option value="slow">Slow</option><option value="medium">Medium</option><option value="fast">Fast</option></select></label>
+          <label>Auto-read incoming (blue ticks) <select data-setting="auto_read"><option value="on">On</option><option value="off">Off</option></select></label>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Message footer</h3>
+        <div class="form-grid">
+          <label>Footer enabled <select data-setting="footer_enabled"><option value="off">Off</option><option value="on">On</option></select></label>
+          <label>Footer text (appended to every reply) <input data-setting="message_footer" placeholder="— sent by my assistant 🤖"></label>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Skills</h3>
+        <div class="form-grid">
+          <label>Skill system <select data-setting="skills_enabled"><option value="on">On</option><option value="off">Off</option></select></label>
+          <label>Self-skill learning (daily, proposals arrive disabled) <select data-setting="self_skill_learning"><option value="off">Off</option><option value="on">On</option></select></label>
         </div>
       </div>
       <div class="card">
@@ -425,6 +507,22 @@
       <button class="btn btn-danger" id="contact-delete">🗑 Delete</button>
     </div>
     <div id="c-history-view" class="test-chat" style="display:none"></div>
+  </div>
+</div>
+
+<!-- Skill editor modal -->
+<div class="modal-backdrop" id="skill-modal" style="display:none">
+  <div class="modal" style="width:560px">
+    <div class="row-between"><h3 id="skill-modal-title">New skill</h3><button class="btn btn-sm" id="skill-modal-close">✕</button></div>
+    <label class="full">Name <input id="sk-name" placeholder="Meeting Scheduler"></label>
+    <label class="full">Description <input id="sk-description" placeholder="One line summary"></label>
+    <label class="full">Trigger keywords (comma-separated, empty = always active)
+      <input id="sk-triggers" placeholder="meet, schedule, appointment">
+    </label>
+    <label class="full">Instructions
+      <textarea id="sk-content" rows="6" placeholder="When someone asks to meet…"></textarea>
+    </label>
+    <div class="btn-row"><button class="btn btn-primary" id="skill-save">💾 Save skill</button></div>
   </div>
 </div>
 

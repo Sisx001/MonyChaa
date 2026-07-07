@@ -109,6 +109,20 @@ function start() {
     }
   });
 
+  // Daily 5am: self-skill learning — the bot proposes new skills from its
+  // recent conversations (they arrive disabled, for owner review).
+  cron.schedule('0 5 * * *', async () => {
+    if (config.getSetting('self_skill_learning') !== 'on') return;
+    try {
+      const created = await require('./skills').learnFromConversations();
+      if (created.length) {
+        await notifyOwner(`🎓 I proposed ${created.length} new skill(s) from recent conversations: ${created.join(', ')}. Review them in the panel → Library.`);
+      }
+    } catch (err) {
+      logger.warn(`Self-skill learning skipped: ${err.message}`);
+    }
+  });
+
   // Nightly: retention cleanup + reset cost alert flag.
   cron.schedule('0 3 * * *', () => {
     alertedCostToday = false;

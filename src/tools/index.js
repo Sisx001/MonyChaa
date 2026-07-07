@@ -220,9 +220,18 @@ const TOOLS = {
 };
 
 function enabledTools() {
-  return Object.entries(TOOLS)
+  const builtin = Object.entries(TOOLS)
     .filter(([, t]) => t.enabled() && t.llm !== false)
     .map(([name, t]) => ({ name, description: t.description, args: t.args }));
+  // Tools from connected MCP servers, qualified as mcp:<server>:<tool>.
+  let mcpTools = [];
+  try {
+    mcpTools = require('../mcp').allTools()
+      .map(t => ({ name: t.qualified, description: t.description, args: t.args }));
+  } catch (err) {
+    logger.debug(`MCP tools unavailable: ${err.message}`);
+  }
+  return [...builtin, ...mcpTools].slice(0, 40); // keep the pre-pass prompt bounded
 }
 
 /** Normalize a tool result to { context, photoUrl } shape. */
@@ -258,7 +267,13 @@ async function maybeRunTool(userMessage) {
       { role: 'user', content: userMessage.slice(0, 1500) },
     ], { maxTokens: 150, temperature: 0 });
     const parsed = JSON.parse(decision.text.replace(/```json|```/g, '').trim());
-    const tool = parsed && parsed.tool && TOOLS[parsed.tool];
+    if (!parsed || !parsed.tool) return null;
+    if (parsed.tool.startsWith('mcp:')) {
+      logger.info(`MCP tool invoked: ${parsed.tool} ${JSON.stringify(parsed.args || {})}`);
+      const output = await require('../mcp').callQualified(parsed.tool, parsed.args || {});
+      return normalizeResult(parsed.tool, output);
+    }
+    const tool = TOOLS[parsed.tool];
     if (!tool || !tool.enabled() || tool.llm === false) return null;
     logger.info(`Tool invoked: ${parsed.tool} ${JSON.stringify(parsed.args || {})}`);
     const output = await tool.run(parsed.args || {});

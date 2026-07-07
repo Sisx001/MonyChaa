@@ -90,8 +90,27 @@ function connectSSE() {
     const d = JSON.parse(e.data);
     push('out', `🔗 business connection ${d.status}`);
   });
+  es.addEventListener('contact', e => {
+    const d = JSON.parse(e.data);
+    push('in', `👋 new contact: ${d.name}`);
+    if ($('#tab-contacts').classList.contains('active')) loadContacts().catch(() => {});
+  });
 }
 connectSSE();
+
+// ---------- Topbar quick toggles ----------
+async function loadTopbar() {
+  const s = await api('/settings');
+  $('#qt-bot').checked = s.bot_enabled === 'on';
+  $('#qt-away').checked = s.away_mode === 'on';
+  $('#qt-typing').checked = s.typing_simulation === 'on';
+  $('#topbar-model').textContent = `${s.primary_provider}/${s.primary_model}`;
+}
+$$('[data-qt]').forEach(el => el.addEventListener('change', async () => {
+  await api('/settings', { method: 'PUT', body: { [el.dataset.qt]: el.checked ? 'on' : 'off' } });
+  toast(`${el.dataset.qt.replace(/_/g, ' ')}: ${el.checked ? 'on' : 'off'}`);
+}));
+loadTopbar().catch(() => {});
 
 // ---------- DASHBOARD ----------
 let chartHourly, chartCost;
@@ -607,6 +626,163 @@ $('#save-automation').addEventListener('click', async () => {
   toast('Automation saved');
 });
 
+// ---------- LIBRARY ----------
+const srcBadge = s => `<span class="badge badge-${{ manual: 'blue', catalog: 'green', github: 'yellow', 'self-learned': 'red' }[s] || 'gray'}">${esc(s)}</span>`;
+
+async function loadLibrary() {
+  const [skillRows, catalog, servers] = await Promise.all([
+    api('/skills'), api('/skills/catalog'), api('/mcp'),
+  ]);
+
+  $('#skills-list').innerHTML = skillRows.length ? skillRows.map(s => {
+    let trig = []; try { trig = JSON.parse(s.triggers || '[]'); } catch {}
+    return `<div class="tool-item">
+      <div class="info">
+        <div class="name">${esc(s.name)} ${srcBadge(s.source)} ${s.uses ? `<span class="hint">used ${s.uses}×</span>` : ''}</div>
+        <div class="desc">${esc(s.description || '')}</div>
+        <div class="hint">${trig.length ? 'Triggers: ' + trig.map(esc).join(', ') : 'Always active'}</div>
+        <details><summary>instructions</summary><div class="tool-output" style="display:block">${esc(s.content)}</div></details>
+      </div>
+      <label class="switch"><input type="checkbox" data-skill-toggle="${s.id}" ${s.enabled ? 'checked' : ''}><span class="slider"></span></label>
+      <button class="btn btn-sm" data-skill-edit="${s.id}">Edit</button>
+      <button class="btn btn-sm btn-danger" data-skill-del="${s.id}">✕</button>
+    </div>`;
+  }).join('') : '<p class="hint">No skills yet — install from the catalog below, search GitHub, or let the bot learn its own.</p>';
+
+  $$('[data-skill-toggle]').forEach(el => el.addEventListener('change', async () => {
+    await api(`/skills/${el.dataset.skillToggle}/toggle`, { method: 'PUT', body: { enabled: el.checked ? 1 : 0 } });
+    toast(el.checked ? 'Skill enabled' : 'Skill disabled');
+  }));
+  $$('[data-skill-del]').forEach(el => el.addEventListener('click', async () => {
+    await api('/skills/' + el.dataset.skillDel, { method: 'DELETE' }); loadLibrary();
+  }));
+  $$('[data-skill-edit]').forEach(el => el.addEventListener('click', () => {
+    openSkill(skillRows.find(s => s.id == el.dataset.skillEdit));
+  }));
+
+  $('#catalog-grid').innerHTML = catalog.map(c => `
+    <div class="provider-card">
+      <h4>${esc(c.name)} ${c.installed ? '<span class="badge badge-green">installed</span>' : ''}</h4>
+      <div class="desc hint">${esc(c.description)}</div>
+      <div class="hint" style="margin:6px 0">${c.triggers.length ? c.triggers.map(esc).join(' · ') : 'always active'}</div>
+      <button class="btn btn-sm ${c.installed ? '' : 'btn-primary'}" data-cat-install="${esc(c.name)}">${c.installed ? '↻ Reinstall' : '⬇ Install'}</button>
+    </div>`).join('');
+  $$('[data-cat-install]').forEach(el => el.addEventListener('click', async () => {
+    await api('/skills/catalog/install', { method: 'POST', body: { name: el.dataset.catInstall } });
+    toast(`Installed: ${el.dataset.catInstall}`); loadLibrary();
+  }));
+
+  $('#mcp-list').innerHTML = servers.length ? servers.map(s => `
+    <div class="tool-item">
+      <div class="info">
+        <div class="name">${esc(s.name)}
+          <span class="badge badge-${s.status === 'connected' ? 'green' : s.status === 'error' ? 'red' : 'gray'}">${esc(s.status)}</span>
+          <span class="hint">${s.tools.length} tools</span>
+        </div>
+        <div class="desc">${esc(s.url)}</div>
+        ${s.last_error ? `<div class="hint" style="color:var(--red)">${esc(s.last_error)}</div>` : ''}
+        ${s.tools.length ? `<details><summary>tools</summary><div class="tool-output" style="display:block">${s.tools.map(t => `• ${esc(t.name)} — ${esc(t.description)}`).join('<br>')}</div></details>` : ''}
+      </div>
+      <label class="switch"><input type="checkbox" data-mcp-toggle="${s.id}" ${s.enabled ? 'checked' : ''}><span class="slider"></span></label>
+      <button class="btn btn-sm" data-mcp-connect="${s.id}">🔌 Connect</button>
+      <button class="btn btn-sm btn-danger" data-mcp-del="${s.id}">✕</button>
+    </div>`).join('') : '<p class="hint">No MCP servers connected.</p>';
+
+  $$('[data-mcp-toggle]').forEach(el => el.addEventListener('change', async () => {
+    await api(`/mcp/${el.dataset.mcpToggle}/toggle`, { method: 'PUT', body: { enabled: el.checked ? 1 : 0 } });
+  }));
+  $$('[data-mcp-connect]').forEach(el => el.addEventListener('click', async () => {
+    el.textContent = '…';
+    const r = await api(`/mcp/${el.dataset.mcpConnect}/connect`, { method: 'POST' });
+    toast(r.ok ? `Connected — ${r.tools} tools discovered` : r.error, r.ok);
+    loadLibrary();
+  }));
+  $$('[data-mcp-del]').forEach(el => el.addEventListener('click', async () => {
+    await api('/mcp/' + el.dataset.mcpDel, { method: 'DELETE' }); loadLibrary();
+  }));
+}
+
+let editingSkillId = null;
+function openSkill(s) {
+  editingSkillId = s?.id || null;
+  $('#skill-modal-title').textContent = s ? 'Edit skill' : 'New skill';
+  $('#sk-name').value = s?.name || '';
+  $('#sk-description').value = s?.description || '';
+  let trig = []; try { trig = JSON.parse(s?.triggers || '[]'); } catch {}
+  $('#sk-triggers').value = trig.join(', ');
+  $('#sk-content').value = s?.content || '';
+  $('#skill-modal').style.display = 'flex';
+}
+$('#skill-add').addEventListener('click', () => openSkill(null));
+$('#skill-modal-close').addEventListener('click', () => $('#skill-modal').style.display = 'none');
+$('#skill-save').addEventListener('click', async () => {
+  try {
+    await api('/skills', {
+      method: 'POST',
+      body: { name: $('#sk-name').value, description: $('#sk-description').value, triggers: $('#sk-triggers').value, content: $('#sk-content').value },
+    });
+    toast('Skill saved');
+    $('#skill-modal').style.display = 'none';
+    loadLibrary();
+  } catch (err) { toast(err.message, false); }
+});
+$('#skill-learn').addEventListener('click', async () => {
+  toast('Analyzing your conversations…');
+  try {
+    const r = await api('/skills/learn', { method: 'POST' });
+    toast(r.created.length ? `Proposed: ${r.created.join(', ')} (disabled — review below)` : 'Nothing new worth learning yet');
+    loadLibrary();
+  } catch (err) { toast(err.message, false); }
+});
+$('#gh-search').addEventListener('click', async () => {
+  const q = $('#gh-query').value.trim();
+  if (!q) return;
+  $('#gh-results').innerHTML = '<p class="hint">Searching GitHub…</p>';
+  try {
+    const rows = await api('/library/github?q=' + encodeURIComponent(q));
+    $('#gh-results').innerHTML = rows.length ? rows.map(r => `
+      <div class="tool-item">
+        <div class="info">
+          <div class="name">⭐ ${r.stars.toLocaleString()} — ${esc(r.full_name)}</div>
+          <div class="desc">${esc(r.description)}</div>
+          <a class="hint" href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a>
+        </div>
+        <button class="btn btn-sm btn-primary" data-gh-install="${esc(r.full_name)}">⬇ Install as skill</button>
+      </div>`).join('') : '<p class="hint">No results.</p>';
+    $$('[data-gh-install]').forEach(el => el.addEventListener('click', async () => {
+      el.textContent = 'Installing…'; el.disabled = true;
+      try {
+        const r = await api('/library/github/install', { method: 'POST', body: { repo: el.dataset.ghInstall } });
+        toast(`Installed skill: ${r.name}`);
+        loadLibrary();
+      } catch (err) { toast(err.message, false); el.textContent = '⬇ Install as skill'; el.disabled = false; }
+    }));
+  } catch (err) { $('#gh-results').innerHTML = `<p class="hint" style="color:var(--red)">${esc(err.message)}</p>`; }
+});
+$('#gh-query').addEventListener('keydown', e => { if (e.key === 'Enter') $('#gh-search').click(); });
+$('#mcp-add').addEventListener('click', async () => {
+  try {
+    await api('/mcp', { method: 'POST', body: { name: $('#mcp-name').value.trim(), url: $('#mcp-url').value.trim(), headers: $('#mcp-headers').value.trim() || '{}' } });
+    const servers = await api('/mcp');
+    const created = servers[servers.length - 1];
+    const r = await api(`/mcp/${created.id}/connect`, { method: 'POST' });
+    toast(r.ok ? `Connected — ${r.tools} tools discovered` : `Added, but connect failed: ${r.error}`, r.ok);
+    $('#mcp-name').value = ''; $('#mcp-url').value = ''; $('#mcp-headers').value = '';
+    loadLibrary();
+  } catch (err) { toast(err.message, false); }
+});
+
+// ---------- Resolver ----------
+$('#resolve-btn').addEventListener('click', async () => {
+  const out = $('#resolve-result');
+  out.textContent = 'Resolving…';
+  try {
+    const r = await api('/resolve?username=' + encodeURIComponent($('#resolve-input').value));
+    out.innerHTML = `✅ <b>${esc(r.name || '')}</b> → chat_id <code>${r.id}</code> (${esc(r.source)})`;
+  } catch (err) { out.textContent = '✗ ' + err.message; }
+});
+$('#resolve-input').addEventListener('keydown', e => { if (e.key === 'Enter') $('#resolve-btn').click(); });
+
 // ---------- LOGS ----------
 let currentLog = 'messages';
 $$('.subtab').forEach(b => b.addEventListener('click', () => {
@@ -716,6 +892,7 @@ const loaders = {
   memory: loadMemory,
   contacts: loadContacts,
   tools: loadTools,
+  library: loadLibrary,
   logs: loadLogs,
   settings: loadSettings,
 };

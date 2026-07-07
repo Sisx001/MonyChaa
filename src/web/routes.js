@@ -246,11 +246,23 @@ router.post('/memory/import', wrap(async (req, res) => {
 
 // ---------- Tools ----------
 router.get('/tools', wrap((req, res) => {
-  res.json(Object.entries(TOOLS).map(([name, t]) => ({
+  const builtin = Object.entries(TOOLS).map(([name, t]) => ({
     name, description: t.description, args: t.args, enabled: t.enabled(),
-  })));
+  }));
+  const mcpTools = require('../mcp').allTools().map(t => ({
+    name: t.qualified, description: t.description, args: t.args, enabled: true, mcp: true,
+  }));
+  res.json([...builtin, ...mcpTools]);
 }));
 router.post('/tools/:name/test', wrap(async (req, res) => {
+  if (req.params.name.startsWith('mcp:')) {
+    try {
+      const output = await require('../mcp').callQualified(req.params.name, req.body || {});
+      return res.json({ ok: true, output: output.slice(0, 4000) });
+    } catch (err) {
+      return res.json({ ok: false, error: err.message });
+    }
+  }
   const tool = TOOLS[req.params.name];
   if (!tool) return res.status(404).json({ error: 'unknown tool' });
   try {
@@ -322,6 +334,115 @@ router.get('/logs/events', wrap((req, res) => {
 
 router.get('/logs/tokens', wrap((req, res) => {
   res.json(db.prepare('SELECT * FROM token_usage ORDER BY id DESC LIMIT 100').all());
+}));
+
+// ---------- Skills ----------
+const skills = require('../skills');
+
+router.get('/skills', wrap((req, res) => res.json(skills.list())));
+router.post('/skills', wrap((req, res) => {
+  const { name, description, triggers, content, enabled } = req.body;
+  skills.upsert({
+    name, description: description || '',
+    triggers: Array.isArray(triggers) ? triggers : String(triggers || '').split(',').map(s => s.trim()).filter(Boolean),
+    content, enabled: enabled === undefined ? 1 : Number(enabled),
+  });
+  res.json({ ok: true });
+}));
+router.put('/skills/:id/toggle', wrap((req, res) => {
+  skills.setEnabled(req.params.id, Number(req.body.enabled));
+  res.json({ ok: true });
+}));
+router.delete('/skills/:id', wrap((req, res) => { skills.remove(req.params.id); res.json({ ok: true }); }));
+
+router.get('/skills/catalog', wrap((req, res) => {
+  const installed = new Set(skills.list().map(s => s.name));
+  res.json(skills.CATALOG.map(c => ({ ...c, installed: installed.has(c.name) })));
+}));
+router.post('/skills/catalog/install', wrap((req, res) => {
+  const item = skills.installFromCatalog(req.body.name);
+  res.json({ ok: true, installed: item.name });
+}));
+router.post('/skills/learn', wrap(async (req, res) => {
+  const created = await skills.learnFromConversations();
+  res.json({ ok: true, created });
+}));
+
+// GitHub skill library: search + one-click install.
+router.get('/library/github', wrap(async (req, res) => {
+  if (!req.query.q) return res.status(400).json({ error: 'q required' });
+  res.json(await skills.githubSearch(req.query.q));
+}));
+router.post('/library/github/install', wrap(async (req, res) => {
+  if (!req.body.repo) return res.status(400).json({ error: 'repo required' });
+  res.json({ ok: true, ...(await skills.githubInstall(req.body.repo)) });
+}));
+
+// ---------- MCP servers ----------
+const mcp = require('../mcp');
+
+router.get('/mcp', wrap((req, res) => {
+  res.json(db.prepare('SELECT * FROM mcp_servers ORDER BY id').all().map(s => ({
+    ...s, tools: JSON.parse(s.tools_json || '[]'), headers: undefined, has_headers: s.headers !== '{}',
+  })));
+}));
+router.post('/mcp', wrap((req, res) => {
+  const { name, url, headers } = req.body;
+  if (!name || !url) return res.status(400).json({ error: 'name and url required' });
+  if (!/^[\w-]+$/.test(name)) return res.status(400).json({ error: 'name must be alphanumeric/dashes (used as tool prefix)' });
+  if (headers) JSON.parse(headers); // validate
+  db.prepare('INSERT INTO mcp_servers (name, url, headers) VALUES (?, ?, ?)')
+    .run(name, url, headers || '{}');
+  res.json({ ok: true });
+}));
+router.put('/mcp/:id/toggle', wrap((req, res) => {
+  db.prepare('UPDATE mcp_servers SET enabled = ? WHERE id = ?').run(Number(req.body.enabled), req.params.id);
+  res.json({ ok: true });
+}));
+router.delete('/mcp/:id', wrap((req, res) => {
+  db.prepare('DELETE FROM mcp_servers WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+}));
+router.post('/mcp/:id/connect', wrap(async (req, res) => {
+  try {
+    const tools = await mcp.connect(Number(req.params.id));
+    res.json({ ok: true, tools: tools.length });
+  } catch (err) {
+    res.json({ ok: false, error: err.message });
+  }
+}));
+router.post('/mcp/:id/call', wrap(async (req, res) => {
+  try {
+    const output = await mcp.callTool(Number(req.params.id), req.body.tool, req.body.args || {});
+    res.json({ ok: true, output: output.slice(0, 4000) });
+  } catch (err) {
+    res.json({ ok: false, error: err.message });
+  }
+}));
+
+// ---------- Telegram username → id resolver ----------
+router.get('/resolve', wrap(async (req, res) => {
+  const raw = String(req.query.username || '').trim().replace(/^@/, '');
+  if (!raw) return res.status(400).json({ error: 'username required' });
+  // 1. Local contact database.
+  const local = db.prepare('SELECT chat_id, name, username FROM contacts WHERE username = ? COLLATE NOCASE').get(raw);
+  if (local) return res.json({ source: 'contacts', id: local.chat_id, name: local.name, username: local.username });
+  // 2. Ask Telegram (works for public usernames the bot can see).
+  const { getBot } = require('../bot/handlers');
+  const bot = getBot();
+  if (!bot) return res.status(404).json({ error: 'Not in contacts, and bot is not running to ask Telegram' });
+  try {
+    const chatInfo = await bot.api.getChat('@' + raw);
+    return res.json({
+      source: 'telegram', id: chatInfo.id, type: chatInfo.type,
+      name: chatInfo.title || [chatInfo.first_name, chatInfo.last_name].filter(Boolean).join(' '),
+      username: chatInfo.username,
+    });
+  } catch (err) {
+    return res.status(404).json({
+      error: `Not found. Telegram only resolves users the bot has seen — ask them to message you once, or forward one of their messages to the bot and use /id.`,
+    });
+  }
 }));
 
 // ---------- API key management ----------

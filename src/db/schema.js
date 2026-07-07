@@ -133,6 +133,32 @@ CREATE TABLE IF NOT EXISTS events_log (
   detail TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS skills (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT UNIQUE,
+  description TEXT,
+  triggers TEXT DEFAULT '[]',   -- JSON array of keywords; empty = always active
+  content TEXT,                 -- instructions injected into the system prompt
+  enabled INTEGER DEFAULT 1,
+  source TEXT DEFAULT 'manual', -- manual | catalog | github | self-learned
+  uses INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS mcp_servers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT UNIQUE,
+  url TEXT,
+  headers TEXT DEFAULT '{}',    -- JSON: extra HTTP headers (auth etc.)
+  enabled INTEGER DEFAULT 1,
+  status TEXT DEFAULT 'new',    -- new | connected | error
+  tools_json TEXT DEFAULT '[]', -- discovered tools cache
+  last_error TEXT,
+  last_connected TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
 `);
 
 // Additive migrations for existing databases.

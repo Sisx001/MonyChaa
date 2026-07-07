@@ -13,8 +13,10 @@ A complete **Telegram AI Secretary** — connects to your personal Telegram acco
 - **Tools** — web search (Tavily/Brave/SerpAPI/Perplexity/SearXNG/DuckDuckGo), webpage reader, weather, crypto prices, currency conversion, translation, image generation (DALL-E or free Pollinations), QR codes, URL shortener
 - **Integrations** — Google Calendar, Gmail (read + panel-initiated send), GitHub notifications, Notion search, Spotify now-playing, YouTube search, Twitter/X search, news
 - **Voice both ways** — transcribes incoming voice notes (Gemini or Whisper); per-contact TTS voice replies (ElevenLabs or OpenAI)
-- **Automation** — away mode (manual + scheduled), welcome messages, keyword alerts, scheduled messages, daily summaries, cost/rate-limit/crash alerts, auto-archive of inactive chats
-- **Admin panel** — dashboard with live charts, prompt editor with versioning/diff/rollback/presets, custom context blocks (weather/news/calendar injected into every prompt), "send now" composer (message/voice/photo/sticker/file/poll), live API key management, full logs, backup/restore
+- **Skill Library** — installable instruction packs with keyword triggers: built-in starter catalog (one-click install), **GitHub search + one-click install** (READMEs are distilled into skills by the LLM), and **self-skill learning** — the bot studies its own conversations and proposes new skills for your review
+- **MCP connector** — plug in any HTTP MCP (Model Context Protocol) server; its tools are auto-discovered and become available to the bot as `mcp:server:tool`
+- **Automation** — away mode (manual + scheduled), welcome messages, keyword alerts, scheduled messages, daily summaries, cost/rate-limit/crash alerts, auto-archive of inactive chats, auto-read receipts, master pause switch (`/pause`)
+- **Admin panel** — futuristic glass dark UI with animations, mobile-friendly, quick-toggle topbar (auto-reply / away / typing), password login (optional `ADMIN_PASSWORD`), dashboard with live charts, prompt editor with versioning/diff/rollback/presets, custom context blocks, "send now" composer (message/voice/photo/sticker/file/poll), @username→id resolver, message footer/signature, live API key management, full logs + CSV export, backup/restore
 
 ## Quickstart
 

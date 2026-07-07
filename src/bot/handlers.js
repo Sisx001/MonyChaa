@@ -124,11 +124,25 @@ async function handleBusinessMessage(ctx) {
     events.broadcast('stats', { queueDepth });
     try {
       const { contact, isNew } = upsertContact(chatId, { username: msg.from.username, name });
+      if (isNew) events.broadcast('contact', { chatId, name, username: msg.from.username || null });
+
+      // Read receipt (blue ticks) for the incoming message.
+      if (config.getSetting('auto_read') === 'on' && connId) {
+        ctx.api.raw.readBusinessMessage({
+          business_connection_id: connId, chat_id: chatId, message_id: msg.message_id,
+        }).catch(() => {});
+      }
 
       const { text, attachments } = await extractContent(msg);
       if (!text && !attachments.length) return;
       logMsg(chatId, 'incoming', text);
       await checkKeywordTriggers(chatId, name, text);
+
+      // Master switch: record everything, reply to nothing.
+      if (config.getSetting('bot_enabled') !== 'on') {
+        require('../memory/conversations').addMessage(chatId, 'user', text);
+        return;
+      }
 
       if (isNew) {
         if (config.getSetting('notify_new_contact') === 'on') {
@@ -278,18 +292,35 @@ function createBot() {
     const { dailySummaryText } = require('../analytics');
     ctx.reply(dailySummaryText());
   });
+  bot.command('id', (ctx) => {
+    const fwd = ctx.message?.forward_origin;
+    if (fwd?.type === 'user') {
+      return ctx.reply(`Forwarded from user id: ${fwd.sender_user.id} (${fwd.sender_user.first_name || ''})`);
+    }
+    ctx.reply(`Your user id: ${ctx.from?.id}\nThis chat id: ${ctx.chat?.id}`);
+  });
+  bot.command('pause', (ctx) => {
+    if (ctx.from?.id !== env.OWNER_USER_ID) return;
+    const next = config.getSetting('bot_enabled') === 'on' ? 'off' : 'on';
+    config.setSetting('bot_enabled', next);
+    ctx.reply(next === 'on' ? '▶️ Auto-replies resumed' : '⏸ Auto-replies paused (still recording messages)');
+  });
   bot.command('help', (ctx) => ctx.reply(
     'Commands:\n' +
     '/status — bot status & today\'s stats\n' +
     '/away — toggle away mode\n' +
+    '/pause — pause/resume all auto-replies\n' +
     '/summary — send the daily summary now\n' +
+    '/id — show your Telegram id (or forward a message to get its sender id)\n' +
     `Admin panel: http://localhost:${env.PORT}`
   ));
 
   bot.api.setMyCommands([
     { command: 'status', description: 'Bot status & stats' },
     { command: 'away', description: 'Toggle away mode' },
+    { command: 'pause', description: 'Pause/resume auto-replies' },
     { command: 'summary', description: 'Daily summary now' },
+    { command: 'id', description: 'Show Telegram id' },
     { command: 'help', description: 'Show commands' },
   ]).catch(err => logger.warn(`setMyCommands failed: ${err.message}`));
 

@@ -93,6 +93,16 @@ const SETTING_DEFAULTS = {
   rate_limit_alerts: 'on',
   // Periodic provider health checks (each check spends a few tokens).
   health_checks: 'off',
+  // Master switch: off = bot records incoming messages but never replies.
+  bot_enabled: 'on',
+  // Optional footer appended to every outgoing text reply.
+  footer_enabled: 'off',
+  message_footer: '',
+  // Mark incoming business messages as read (blue ticks).
+  auto_read: 'on',
+  // Skill system.
+  skills_enabled: 'on',
+  self_skill_learning: 'off',
 };
 
 // API keys manageable from the admin panel (stored in DB, env is fallback).

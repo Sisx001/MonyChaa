@@ -174,7 +174,9 @@ async function generateReply(chatId, incomingText, { attachments = [] } = {}) {
     injectedContext().catch(() => ''),
   ]);
   let extraContext = '';
-  if (injected) extraContext += injected;
+  const skillBlock = require('../skills').activeFor(incomingText);
+  if (skillBlock) extraContext += `Active skills — follow these instructions:\n${skillBlock}`;
+  if (injected) extraContext += (extraContext ? '\n\n' : '') + injected;
   if (memories.length) {
     extraContext += (extraContext ? '\n\n' : '') + 'Relevant memories:\n' + memories.map(m => `- ${m.content}`).join('\n');
   }
@@ -216,8 +218,14 @@ async function generateReply(chatId, incomingText, { attachments = [] } = {}) {
   });
 
   logger.info(`Reply for ${chatId} via ${result.provider}/${result.model} in ${Date.now() - start}ms`);
+  const bursts = splitBursts(replyText);
+  // Optional footer/signature on the final burst of every reply.
+  if (config.getSetting('footer_enabled') === 'on') {
+    const footer = config.getSetting('message_footer').trim();
+    if (footer) bursts[bursts.length - 1] += `\n\n${footer}`;
+  }
   return {
-    bursts: splitBursts(replyText),
+    bursts,
     plan,
     result,
     contact,
