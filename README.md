@@ -18,8 +18,13 @@ A complete **Telegram AI Secretary** — connects to your personal Telegram acco
 - **Configure from Telegram** — DM the bot `/set`, `/persona`, `/model`, `/character`, `/settings` and more
 - **Skill Library** — installable instruction packs with keyword triggers: built-in starter catalog (one-click install), **GitHub search + one-click install** (READMEs are distilled into skills by the LLM), and **self-skill learning** — the bot studies its own conversations and proposes new skills for your review
 - **MCP connector** — plug in any HTTP MCP (Model Context Protocol) server; its tools are auto-discovered and become available to the bot as `mcp:server:tool`
-- **Automation** — away mode (manual + scheduled), welcome messages, keyword alerts, scheduled messages, daily summaries, cost/rate-limit/crash alerts, auto-archive of inactive chats, auto-read receipts, master pause switch (`/pause`)
-- **Admin panel** — futuristic glass dark UI with animations, mobile-friendly, quick-toggle topbar (auto-reply / away / typing), password login (optional `ADMIN_PASSWORD`), dashboard with live charts, prompt editor with versioning/diff/rollback/presets, custom context blocks, "send now" composer (message/voice/photo/sticker/file/poll), @username→id resolver, message footer/signature, live API key management, full logs + CSV export, backup/restore
+- **Preloaded characters** — 12 one-click personas (Professional, Bestie, Charmer, Support Hero, Closer, Butler…) that set prompt + emoji + style + temperature together
+- **Automation** — away mode (manual + scheduled), quiet hours, reply probability, welcome messages, keyword alerts, scheduled messages, daily summaries, cost/rate-limit/crash alerts, auto-archive of inactive chats, auto-read receipts, master pause switch (`/pause`), group-chat replies with mention gating
+- **Security** — multi-user accounts with scrypt-hashed passwords and roles (owner/admin/viewer), DB-backed sessions, brute-force lockout, IP bans with country flags, spoof-resistant client-IP handling, full audit log, strict CSP + security headers, per-IP rate limiting
+- **System monitoring** — live CPU/memory/disk/DB meters, health diagnostics with one-click auto-fix, graceful restart
+- **Admin panel** — glassmorphism dark UI with aurora background, animations, a top progress bar, mobile-friendly, quick-toggle topbar (auto-reply / away / typing), a ChatGPT-style playground (markdown, model picker, custom prompts, export), dashboard with live charts + per-assistant breakdown, prompt editor with versioning/diff/rollback/presets, custom context blocks, "send now" composer (message/voice/photo/sticker/file/poll), @username→id resolver, message footer/signature, live API key management, full logs + CSV export, secret-safe backup/restore
+
+**Full documentation:** see [DOCS.md](DOCS.md) for an A–Z guide (setup, panel tour, characters, gateway, skills/tools/MCP, Telegram commands, security, monitoring, multi-assistant, VPS deploy, env vars).
 
 ## Quickstart
 
