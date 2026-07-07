@@ -282,6 +282,18 @@ test('per-assistant settings overlay wins over globals in buildSystemPrompt', ()
   assert.ok(withoutOverlay.includes('Never use emoji'), 'global emoji directive missing');
 });
 
+test('backup: default export excludes API keys, opt-in includes them', () => {
+  const config = require('../src/config');
+  const db = require('../src/db/schema');
+  config.setKey('GROQ_API_KEY', 'gsk_backuptest');
+  const safe = db.prepare('SELECT key FROM settings').all()
+    .filter(s => !s.key.startsWith('apikey_'));
+  assert.ok(!safe.some(s => s.key.startsWith('apikey_')), 'safe view still had apikey_');
+  const full = db.prepare('SELECT key FROM settings').all();
+  assert.ok(full.some(s => s.key === 'apikey_GROQ_API_KEY'), 'full view missing the key');
+  config.setKey('GROQ_API_KEY', '');
+});
+
 test('geoip: flag emoji + private IP detection', () => {
   const geo = require('../src/web/geoip');
   assert.strictEqual(geo.flag('US'), '🇺🇸');

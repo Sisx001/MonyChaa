@@ -709,8 +709,10 @@
 
       <div class="card">
         <h3>Data</h3>
+        <p class="hint">The default backup excludes secrets (API keys, bot tokens, MCP auth). Use the full backup only for a trusted, private location.</p>
         <div class="btn-row">
-          <a class="btn" href="/api/backup" download><svg class="ic ic-sm"><use href="#i-download"/></svg> Backup everything (JSON)</a>
+          <a class="btn" href="/api/backup" download><svg class="ic ic-sm"><use href="#i-download"/></svg> Backup (no secrets)</a>
+          <a class="btn" href="/api/backup?secrets=1" download><svg class="ic ic-sm"><use href="#i-key"/></svg> Full backup (with secrets)</a>
           <button class="btn" id="restore-btn"><svg class="ic ic-sm"><use href="#i-upload"/></svg> Restore from backup</button>
           <input type="file" id="restore-file" accept=".json" hidden>
         </div>

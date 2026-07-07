@@ -720,11 +720,20 @@ router.post('/send', wrap(async (req, res) => {
 
 // ---------- Backup / restore ----------
 router.get('/backup', wrap((req, res) => {
-  const dump = {};
-  for (const t of ['settings', 'contacts', 'facts', 'memories', 'prompt_versions', 'scheduled_messages']) {
+  // Secrets (API keys, bot tokens, MCP auth headers) are excluded unless
+  // ?secrets=1 is passed — keeps the default export safe to store/share.
+  const withSecrets = req.query.secrets === '1';
+  const dump = { exported_at: new Date().toISOString(), includes_secrets: withSecrets };
+  const settings = db.prepare('SELECT key, value FROM settings').all()
+    .filter(s => withSecrets || !s.key.startsWith('apikey_'));
+  dump.settings = settings;
+  for (const t of ['contacts', 'facts', 'memories', 'prompt_versions', 'scheduled_messages', 'skills']) {
     dump[t] = db.prepare(`SELECT * FROM ${t}`).all();
   }
-  dump.exported_at = new Date().toISOString();
+  dump.mcp_servers = db.prepare('SELECT * FROM mcp_servers').all()
+    .map(s => withSecrets ? s : { ...s, headers: '{}' });
+  dump.assistants = db.prepare('SELECT * FROM assistants').all()
+    .map(a => withSecrets ? a : { ...a, bot_token: null });
   res.setHeader('Content-Disposition', 'attachment; filename=secretary-backup.json');
   res.json(dump);
 }));
@@ -735,10 +744,11 @@ router.post('/restore', wrap((req, res) => {
   const tx = db.transaction(() => {
     for (const s of dump.settings || []) config.setSetting(s.key, s.value);
     counts.settings = (dump.settings || []).length;
+
     if (Array.isArray(dump.contacts)) {
-      const ins = db.prepare(`INSERT OR REPLACE INTO contacts (chat_id, ${CONTACT_FIELDS.join(',')})
-        VALUES (?, ${CONTACT_FIELDS.map(() => '?').join(',')})`);
-      for (const c of dump.contacts) ins.run(c.chat_id, ...CONTACT_FIELDS.map(f => c[f] ?? null));
+      const cols = ['chat_id', 'assistant_id', ...CONTACT_FIELDS];
+      const ins = db.prepare(`INSERT OR REPLACE INTO contacts (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`);
+      for (const c of dump.contacts) ins.run(c.chat_id, c.assistant_id || 0, ...CONTACT_FIELDS.map(f => c[f] ?? null));
       counts.contacts = dump.contacts.length;
     }
     if (Array.isArray(dump.facts)) {
@@ -746,14 +756,30 @@ router.post('/restore', wrap((req, res) => {
       counts.facts = dump.facts.length;
     }
     if (Array.isArray(dump.memories)) {
-      const ins = db.prepare('INSERT INTO memories (chat_id, content, priority, embedding) VALUES (?, ?, ?, ?)');
-      for (const m of dump.memories) if (m.content) ins.run(m.chat_id || 0, m.content, m.priority || 'casual', m.embedding || null);
+      const ins = db.prepare('INSERT INTO memories (chat_id, content, priority, embedding, assistant_id) VALUES (?, ?, ?, ?, ?)');
+      for (const m of dump.memories) if (m.content) ins.run(m.chat_id || 0, m.content, m.priority || 'casual', m.embedding || null, m.assistant_id || 0);
       counts.memories = dump.memories.length;
     }
     if (Array.isArray(dump.prompt_versions)) {
       const ins = db.prepare('INSERT INTO prompt_versions (name, content) VALUES (?, ?)');
       for (const v of dump.prompt_versions) if (v.content) ins.run(v.name || 'restored', v.content);
       counts.prompt_versions = dump.prompt_versions.length;
+    }
+    if (Array.isArray(dump.skills)) {
+      const ins = db.prepare(`INSERT OR REPLACE INTO skills (name, description, triggers, content, enabled, source)
+        VALUES (?, ?, ?, ?, ?, ?)`);
+      for (const s of dump.skills) if (s.name && s.content) ins.run(s.name, s.description || '', s.triggers || '[]', s.content, s.enabled ?? 1, s.source || 'manual');
+      counts.skills = dump.skills.length;
+    }
+    if (Array.isArray(dump.mcp_servers)) {
+      const ins = db.prepare('INSERT OR REPLACE INTO mcp_servers (name, url, headers, enabled) VALUES (?, ?, ?, ?)');
+      for (const s of dump.mcp_servers) if (s.name && s.url) ins.run(s.name, s.url, s.headers || '{}', s.enabled ?? 1);
+      counts.mcp_servers = dump.mcp_servers.length;
+    }
+    if (Array.isArray(dump.assistants)) {
+      const ins = db.prepare('INSERT INTO assistants (name, bot_token, owner_user_id, system_prompt, settings_json, enabled) VALUES (?, ?, ?, ?, ?, ?)');
+      for (const a of dump.assistants) if (a.name) ins.run(a.name, a.bot_token || null, a.owner_user_id || null, a.system_prompt || null, a.settings_json || '{}', a.enabled ?? 1);
+      counts.assistants = dump.assistants.length;
     }
   });
   tx();
