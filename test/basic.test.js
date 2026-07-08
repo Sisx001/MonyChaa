@@ -82,6 +82,39 @@ test('tool registry: enabled() never throws, llm-gated tools excluded from auto 
   assert.ok(!names.includes('gmail_send'), 'gmail_send must never be LLM-invocable');
 });
 
+test('utility tools: pure-computation tools produce correct output', async () => {
+  const { TOOLS } = require('../src/tools');
+  assert.strictEqual(await TOOLS.calculator.run({ expression: '2*(3+4)/2' }), '2*(3+4)/2 = 7');
+  await assert.rejects(async () => TOOLS.calculator.run({ expression: 'process.exit(1)' }), /allowed/);
+  assert.match(await TOOLS.unit_convert.run({ value: 1, from: 'km', to: 'm' }), /1000 m/);
+  assert.strictEqual(await TOOLS.temperature_convert.run({ value: 100, from: 'C', to: 'F' }), '100°C = 212°F');
+  assert.match(await TOOLS.hash.run({ text: 'abc', algo: 'sha256' }), /ba7816bf/);
+  assert.strictEqual(await TOOLS.base64.run({ text: 'hi', mode: 'encode' }), 'aGk=');
+  assert.strictEqual(await TOOLS.base64.run({ text: 'aGk=', mode: 'decode' }), 'hi');
+  assert.strictEqual((await TOOLS.uuid.run({})).length, 36);
+  assert.strictEqual((await TOOLS.password_generator.run({ length: 24 })).length, 24);
+  assert.ok(['Heads', 'Tails'].includes(await TOOLS.coin_flip.run({})));
+  assert.match(await TOOLS.dice.run({ notation: '2d6' }), /2d6:/);
+  assert.strictEqual(await TOOLS.text_transform.run({ text: 'aB', mode: 'reverse' }), 'Ba');
+});
+
+test('reply post-processing: strip markdown, links cap, phone redaction, signature', () => {
+  const { postProcess } = require('../src/bot/reply');
+  const config = require('../src/config');
+  config.setSetting('strip_markdown', 'on');
+  config.setSetting('max_links_per_reply', '1');
+  config.setSetting('redact_phone_numbers', 'on');
+  config.setSetting('signature_name', 'Alex');
+  const out = postProcess('**bold** call +1 415 555 1234 see https://a.com and https://b.com', 0);
+  assert.ok(!out.includes('**'), 'markdown not stripped');
+  assert.ok(out.includes('[redacted]'), 'phone not redacted');
+  assert.ok(out.includes('https://a.com') && !out.includes('https://b.com'), 'link cap not applied');
+  assert.ok(out.endsWith('— Alex'), 'signature not appended');
+  // reset
+  config.setSetting('signature_name', ''); config.setSetting('redact_phone_numbers', 'off');
+  config.setSetting('max_links_per_reply', '3');
+});
+
 test('facts store roundtrip and prompt formatting', () => {
   const facts = require('../src/memory/facts');
   facts.upsert('test_fact', 'the answer is 42', 'critical');

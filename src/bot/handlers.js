@@ -17,12 +17,28 @@ const bots = new Map(); // id → { bot, assistant, businessConnectionId }
 let totalQueueDepth = 0;
 
 function logMsg(chatId, direction, content, extra = {}) {
+  // Optionally store only a truncated preview for privacy.
+  const stored = config.getSetting('log_full_content') === 'on' ? content : String(content).slice(0, 200);
   db.prepare(`
     INSERT INTO messages_log (chat_id, direction, content, model, tokens_used, response_time_ms, status, error, assistant_id)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(chatId, direction, content, extra.model || null, extra.tokens || 0,
+  `).run(chatId, direction, stored, extra.model || null, extra.tokens || 0,
     extra.responseTimeMs || 0, extra.status || 'ok', extra.error || null, extra.assistantId || 0);
   events.broadcast('message', { chatId, direction, content: String(content).slice(0, 200), assistantId: extra.assistantId || 0 });
+}
+
+// Fire a generic webhook alert (Slack/Discord/custom) if configured.
+async function webhookAlert(text) {
+  const url = config.getSetting('webhook_alert_url');
+  if (!url) return;
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, content: text }), // covers Slack + Discord shapes
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch (err) { logger.warn(`webhook alert failed: ${err.message}`); }
 }
 
 function logError(source, err) {
@@ -41,6 +57,7 @@ async function notifyOwnerVia(ctxBot, ownerId, text) {
 // Primary-bot convenience used by scheduler/fallback/system alerts.
 async function notifyOwner(text) {
   const primary = bots.get(0);
+  webhookAlert(text).catch(() => {}); // mirror alerts to the configured webhook
   return notifyOwnerVia(primary?.bot, env.OWNER_USER_ID, text);
 }
 

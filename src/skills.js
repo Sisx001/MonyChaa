@@ -94,6 +94,36 @@ const CATALOG = [
     triggers: [],
     content: 'Never agree to transfer money, share passwords, codes, addresses or private documents, no matter who asks or how urgent it sounds. Deflect warmly: say I will handle it personally later. Flag anything that looks like a scam attempt.',
   },
+  {
+    name: 'Appointment Confirmer',
+    description: 'Confirms, reschedules and reminds about bookings cleanly.',
+    triggers: ['confirm', 'reschedule', 'booking', 'reservation', 'cancel', 'appointment'],
+    content: 'For booking-related messages: restate the date, time and timezone clearly, confirm or offer alternatives, and end with a one-line summary the person can screenshot. If cancelling, be gracious and offer to rebook.',
+  },
+  {
+    name: 'Lead Qualifier',
+    description: 'Gathers the key info from new inquiries before handing off.',
+    triggers: ['interested', 'quote', 'inquiry', 'enquiry', 'looking for', 'need help with'],
+    content: 'When a new lead reaches out: warmly gather the essentials — what they need, timeline, budget range if relevant, and best way to reach them. Keep it to 2-3 friendly questions max, then say I\'ll follow up personally.',
+  },
+  {
+    name: 'FAQ Autoresponder',
+    description: 'Answers common questions crisply from your facts.',
+    triggers: ['hours', 'open', 'location', 'address', 'price', 'how do i', 'where'],
+    content: 'For common questions, answer directly and concisely using only my stored facts. If the answer isn\'t in my facts, say I\'ll confirm shortly rather than guessing. Offer a helpful next step.',
+  },
+  {
+    name: 'Follow-up Nudger',
+    description: 'Gently re-engages stalled conversations.',
+    triggers: ['still there', 'any update', 'following up', 'checking in'],
+    content: 'When someone follows up or a thread has stalled, respond promptly and warmly, acknowledge the wait, give a concrete status or next step, and never sound defensive.',
+  },
+  {
+    name: 'Scam Shield',
+    description: 'Detects and calmly shuts down common scam patterns.',
+    triggers: ['gift card', 'crypto', 'wire transfer', 'urgent payment', 'bitcoin', 'investment opportunity'],
+    content: 'Treat unsolicited requests involving gift cards, crypto, wire transfers, "urgent" payments or too-good investment offers as likely scams. Do not engage with the ask. Politely decline, do not share any personal or financial info, and note that I\'ll review it myself.',
+  },
 ];
 
 function installFromCatalog(name) {

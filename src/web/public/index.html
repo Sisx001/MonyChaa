@@ -675,6 +675,37 @@
         <div class="form-grid">
           <label>Footer enabled <select data-setting="footer_enabled"><option value="off">Off</option><option value="on">On</option></select></label>
           <label>Footer text (appended to every reply) <input data-setting="message_footer" placeholder="— sent by my assistant"></label>
+          <label>Signature name (added as "— name") <input data-setting="signature_name" placeholder="(none)"></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Reply rate controls</h3>
+        <div class="form-grid">
+          <label>Cooldown between replies to a contact (seconds) <input type="number" min="0" data-setting="cooldown_seconds"></label>
+          <label>Max replies per contact per day (0 = unlimited) <input type="number" min="0" data-setting="max_daily_replies_per_contact"></label>
+          <label>Extra delay on first message of a chat (seconds) <input type="number" min="0" data-setting="first_reply_delay_seconds"></label>
+          <label>Repeat guard (skip identical back-to-back replies) <select data-setting="repeat_guard"><option value="on">On</option><option value="off">Off</option></select></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Business hours</h3>
+        <div class="form-grid">
+          <label>Reply only during business hours <select data-setting="business_hours_only"><option value="off">Off</option><option value="on">On</option></select></label>
+          <label>Start (HH:MM) <input data-setting="business_hours_start" placeholder="09:00"></label>
+          <label>End (HH:MM) <input data-setting="business_hours_end" placeholder="18:00"></label>
+          <label>After-hours auto-reply <input data-setting="after_hours_message" placeholder="(empty = stay silent)"></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Content controls</h3>
+        <div class="form-grid">
+          <label>Strip markdown from replies <select data-setting="strip_markdown"><option value="on">On</option><option value="off">Off</option></select></label>
+          <label>Max links per reply <input type="number" min="0" data-setting="max_links_per_reply"></label>
+          <label>Redact phone numbers <select data-setting="redact_phone_numbers"><option value="off">Off</option><option value="on">On</option></select></label>
+          <label>Profanity filter <select data-setting="profanity_filter"><option value="off">Off</option><option value="on">On</option></select></label>
         </div>
       </div>
 
@@ -732,6 +763,8 @@
           <label>Data retention (days, 0 = keep forever) <input type="number" data-setting="data_retention_days"></label>
           <label>Live feed in sidebar <select data-setting="stream_feed"><option value="on">On</option><option value="off">Off</option></select></label>
           <label>Dashboard refresh (seconds) <input type="number" min="5" max="120" data-setting="dashboard_refresh_s"></label>
+          <label>Store full message content in logs <select data-setting="log_full_content"><option value="on">On</option><option value="off">Off (truncate)</option></select></label>
+          <label>Webhook alert URL (Slack/Discord/custom) <input data-setting="webhook_alert_url" placeholder="https://hooks.slack.com/…"></label>
         </div>
       </div>
 

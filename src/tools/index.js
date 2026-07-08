@@ -215,6 +215,9 @@ const TOOLS = {
     enabled: () => Boolean(config.key('TWITTER_BEARER_TOKEN')),
     run: ({ query }) => integrations.twitterSearch(query || ''),
   },
+  // A large batch of utility + keyless tools (calculator, converters, hashes,
+  // wikipedia, dictionary, jokes, …).
+  ...require('./utility'),
 };
 
 function enabledTools() {

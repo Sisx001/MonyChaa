@@ -171,16 +171,63 @@ function inQuietHours() {
   return start <= end ? (now >= start && now <= end) : (now >= start || now <= end);
 }
 
+function inBusinessHours() {
+  if (config.getSetting('business_hours_only') !== 'on') return true;
+  const start = config.getSetting('business_hours_start');
+  const end = config.getSetting('business_hours_end');
+  if (!start || !end) return true;
+  const tz = config.getSetting('timezone') || 'UTC';
+  const now = new Date().toLocaleTimeString('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit' });
+  return start <= end ? (now >= start && now <= end) : (now >= start || now <= end);
+}
+
 /** Reply-policy gates: returns a skip reason or null to proceed. */
-function replyPolicyBlock(incomingText) {
+function replyPolicyBlock(incomingText, chatId, aid = 0) {
   if (inQuietHours()) return 'quiet_hours';
+  if (!inBusinessHours()) return 'after_hours';
   if (incomingText.length < (Number(config.getSetting('min_message_length')) || 0)) return 'too_short';
   const blacklist = config.getJSON('blacklist_words', []);
   const lower = incomingText.toLowerCase();
   if (blacklist.some(w => w && lower.includes(String(w).toLowerCase()))) return 'blacklisted_word';
+
+  // Cooldown between replies to the same contact.
+  const cooldown = Number(config.getSetting('cooldown_seconds')) || 0;
+  if (cooldown > 0 && chatId) {
+    const last = db.prepare("SELECT created_at FROM messages_log WHERE chat_id = ? AND assistant_id = ? AND direction = 'outgoing' ORDER BY id DESC LIMIT 1").get(chatId, aid);
+    if (last && (Date.now() - new Date(last.created_at + 'Z').getTime()) < cooldown * 1000) return 'cooldown';
+  }
+  // Daily reply cap per contact.
+  const cap = Number(config.getSetting('max_daily_replies_per_contact')) || 0;
+  if (cap > 0 && chatId) {
+    const count = db.prepare("SELECT COUNT(*) c FROM messages_log WHERE chat_id = ? AND assistant_id = ? AND direction = 'outgoing' AND created_at >= date('now')").get(chatId, aid).c;
+    if (count >= cap) return 'daily_cap';
+  }
+
   const probability = Number(config.getSetting('reply_probability'));
   if (Number.isFinite(probability) && probability < 100 && Math.random() * 100 >= probability) return 'probability_skip';
   return null;
+}
+
+/** Post-process the generated reply per content-control settings. */
+function postProcess(text, aid = 0) {
+  let out = text;
+  if (config.getSetting('strip_markdown') === 'on') {
+    out = out.replace(/```[\s\S]*?```/g, m => m.replace(/```\w*\n?/g, '')).replace(/[*_`#>]/g, '');
+  }
+  if (config.getSetting('redact_phone_numbers') === 'on') {
+    out = out.replace(/(\+?\d[\d\s().-]{7,}\d)/g, '[redacted]');
+  }
+  if (config.getSetting('profanity_filter') === 'on') {
+    out = out.replace(/\b(fuck|shit|bitch|asshole|cunt|dick)\w*\b/gi, m => m[0] + '*'.repeat(Math.max(1, m.length - 1)));
+  }
+  const maxLinks = Number(config.getSetting('max_links_per_reply'));
+  if (Number.isFinite(maxLinks) && maxLinks >= 0) {
+    let seen = 0;
+    out = out.replace(/https?:\/\/\S+/g, url => (++seen > maxLinks ? '' : url));
+  }
+  const sig = config.getSetting('signature_name');
+  if (sig) out += `\n— ${sig}`;
+  return out.trim();
 }
 
 async function generateReply(chatId, incomingText, { attachments = [], assistant = null } = {}) {
@@ -192,10 +239,15 @@ async function generateReply(chatId, incomingText, { attachments = [], assistant
   const contact = getContact(chatId, aid);
   const start = Date.now();
 
-  const blocked = replyPolicyBlock(incomingText);
+  const blocked = replyPolicyBlock(incomingText, chatId, aid);
   if (blocked) {
     conversations.addMessage(chatId, 'user', incomingText, 0, aid);
     logger.info(`Reply skipped for ${chatId}: ${blocked}`);
+    // After-hours auto-reply, throttled once per window.
+    if (blocked === 'after_hours') {
+      const msg = config.getSetting('after_hours_message');
+      if (msg) return { bursts: [msg], plan: { thinkMs: 1000, typeMs: 800 }, result: { provider: 'after-hours', model: '-', tokensIn: 0, tokensOut: 0, cost: 0 }, contact };
+    }
     return null;
   }
 
@@ -257,6 +309,16 @@ async function generateReply(chatId, incomingText, { attachments = [], assistant
   let replyText = result.text.trim();
   if (!replyText) throw new Error('LLM returned empty reply');
   if (replyText.length > maxLen * 1.5) replyText = replyText.slice(0, maxLen * 1.5).replace(/\s+\S*$/, '');
+  replyText = postProcess(replyText, aid);
+
+  // Repeat guard: don't send an identical reply twice in a row to this chat.
+  if (config.getSetting('repeat_guard') === 'on') {
+    const lastOut = db.prepare("SELECT content FROM messages_log WHERE chat_id = ? AND assistant_id = ? AND direction = 'outgoing' ORDER BY id DESC LIMIT 1").get(chatId, aid);
+    if (lastOut && lastOut.content === replyText) {
+      logger.info(`Reply skipped for ${chatId}: repeat_guard (identical to last reply)`);
+      return null;
+    }
+  }
 
   conversations.addMessage(chatId, 'assistant', replyText, result.tokensOut, aid);
 
@@ -289,4 +351,4 @@ async function generateReply(chatId, incomingText, { attachments = [], assistant
   };
 }
 
-module.exports = { generateReply, getContact, upsertContact, buildSystemPrompt, isAway, sleep };
+module.exports = { generateReply, getContact, upsertContact, buildSystemPrompt, isAway, postProcess, sleep };

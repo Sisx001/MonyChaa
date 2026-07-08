@@ -141,6 +141,27 @@ const SETTING_DEFAULTS = {
   group_mention_only: 'on',     // in groups, only reply when @mentioned/replied-to
   agent_name: '',               // name the bot answers to (for mentions)
   offline_message: '',          // sent once when bot_enabled is off, if set
+
+  // ---- More reply controls ----
+  signature_name: '',           // optional signature line appended (distinct from footer)
+  max_daily_replies_per_contact: '0', // 0 = unlimited
+  cooldown_seconds: '0',        // min seconds between replies to the same contact
+  first_reply_delay_seconds: '0', // extra think delay on the first message of a chat
+  business_hours_only: 'off',   // only reply during away_schedule window's inverse
+  business_hours_start: '',     // HH:MM
+  business_hours_end: '',
+  after_hours_message: '',      // sent outside business hours (once per window)
+  repeat_guard: 'on',           // avoid sending an identical reply twice in a row
+
+  // ---- Content controls ----
+  strip_markdown: 'on',         // remove markdown formatting from replies
+  max_links_per_reply: '3',
+  redact_phone_numbers: 'off',  // mask phone-number-looking strings in replies
+  profanity_filter: 'off',
+
+  // ---- Ops ----
+  log_full_content: 'on',       // store full message content in logs (off = truncated)
+  webhook_alert_url: '',        // POST alerts to this URL (Slack/Discord/generic)
 };
 
 // API keys manageable from the admin panel (stored in DB, env is fallback).
