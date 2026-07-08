@@ -303,6 +303,21 @@ test('geoip: flag emoji + private IP detection', () => {
   assert.ok(!geo.isPrivate('8.8.8.8'));
 });
 
+test('ssrf: blocks private, loopback, link-local and metadata addresses', async () => {
+  const { assertSafeUrl, ipIsPrivate } = require('../src/tools/ssrf');
+  assert.ok(ipIsPrivate('127.0.0.1'));
+  assert.ok(ipIsPrivate('10.1.2.3'));
+  assert.ok(ipIsPrivate('192.168.0.1'));
+  assert.ok(ipIsPrivate('169.254.169.254'), 'cloud metadata IP must be blocked');
+  assert.ok(ipIsPrivate('172.16.5.5'));
+  assert.ok(!ipIsPrivate('8.8.8.8'));
+  await assert.rejects(() => assertSafeUrl('http://127.0.0.1/'), /private|internal/);
+  await assert.rejects(() => assertSafeUrl('http://169.254.169.254/latest/meta-data/'), /private|internal/);
+  await assert.rejects(() => assertSafeUrl('file:///etc/passwd'), /scheme/);
+  await assert.rejects(() => assertSafeUrl('ftp://example.com'), /scheme/);
+  await assert.rejects(() => assertSafeUrl('not a url'), /invalid URL/);
+});
+
 test('auth clientIp ignores X-Forwarded-For unless TRUST_PROXY is set', () => {
   // Default test env has no TRUST_PROXY, so spoofed XFF must be ignored.
   const auth = require('../src/web/auth');

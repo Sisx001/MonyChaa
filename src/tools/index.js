@@ -32,12 +32,10 @@ const TOOLS = {
     args: '{ "url": "https://..." }',
     enabled: () => config.getSetting('auto_search') === 'on',
     run: async ({ url }) => {
-      if (!/^https?:\/\//i.test(String(url))) throw new Error('invalid URL');
-      const res = await fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; secretary-pro/1.0)' },
-        signal: AbortSignal.timeout(15000), redirect: 'follow',
-      });
-      const html = await res.text();
+      // SSRF-safe: blocks private/metadata addresses and pins the connection.
+      const { safeFetch } = require('./ssrf');
+      const res = await safeFetch(String(url), { timeoutMs: 15000 });
+      const html = res.text;
       const text = html
         .replace(/<script[\s\S]*?<\/script>/gi, ' ')
         .replace(/<style[\s\S]*?<\/style>/gi, ' ')
