@@ -671,3 +671,13 @@ kbd { font-family: inherit; font-size: 11px; background: var(--glass-3); border:
 :root[data-theme="light"] .brand-name { -webkit-text-fill-color: initial; background: none; color: #4a3ecc; }
 :root[data-theme="light"] .cmdk-item.active, :root[data-theme="light"] .cmdk-item:hover { color: var(--text); }
 :root[data-theme="light"] .topbar-right { color: var(--text-dim); }
+
+/* Notes */
+.notes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.note-card { background: var(--glass-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 13px; transition: border-color .16s, transform .16s; animation: fadeUp .3s var(--ease) both; }
+.note-card:hover { border-color: var(--accent-border); transform: translateY(-2px); }
+.note-card.pinned { border-color: var(--accent-border); box-shadow: inset 3px 0 0 var(--accent); }
+.note-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+.note-actions { display: flex; gap: 2px; opacity: 0; transition: opacity .15s; }
+.note-card:hover .note-actions { opacity: 1; }
+.note-body { font-size: 13px; color: var(--text-2); white-space: pre-wrap; line-height: 1.5; max-height: 160px; overflow-y: auto; }

@@ -116,6 +116,12 @@ test('utility tools: pure-computation tools produce correct output', async () =>
   assert.strictEqual(await TOOLS.case_convert.run({ text: 'Hello World', style: 'snake' }), 'hello_world');
   assert.strictEqual(await TOOLS.case_convert.run({ text: 'hello world', style: 'camel' }), 'helloWorld');
   assert.strictEqual(await TOOLS.reverse_text.run({ text: 'a b c', by: 'words' }), 'c b a');
+  // fourth batch
+  assert.match(await TOOLS.average.run({ numbers: '2, 4, 6' }), /mean 4, median 4/);
+  assert.match(await TOOLS.discount.run({ price: 100, percent: 25 }), /= \$75\.00/);
+  assert.strictEqual(await TOOLS.binary_text.run({ text: 'Hi', mode: 'encode' }), '01001000 01101001');
+  assert.strictEqual(await TOOLS.binary_text.run({ text: '01001000 01101001', mode: 'decode' }), 'Hi');
+  assert.match(await TOOLS.text_stats.run({ text: 'one two three. four five.' }), /5 words, 2 sentences/);
 });
 
 test('reply post-processing: strip markdown, links cap, phone redaction, signature', () => {

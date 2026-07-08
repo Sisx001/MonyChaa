@@ -468,6 +468,85 @@ const TOOLS = {
       return list.join(', ');
     },
   },
+
+  // ---- fourth utility batch ----
+  average: {
+    description: 'Mean, median, min, max and sum of numbers',
+    args: '{ "numbers": "4, 8, 15, 16, 23, 42" }',
+    enabled: () => true,
+    run: ({ numbers }) => {
+      const arr = String(numbers).split(/[,\s]+/).map(Number).filter(n => !isNaN(n)).sort((a, b) => a - b);
+      if (!arr.length) throw new Error('give some numbers');
+      const sum = arr.reduce((a, b) => a + b, 0);
+      const mid = Math.floor(arr.length / 2);
+      const median = arr.length % 2 ? arr[mid] : (arr[mid - 1] + arr[mid]) / 2;
+      return `mean ${+(sum / arr.length).toFixed(3)}, median ${median}, min ${arr[0]}, max ${arr[arr.length - 1]}, sum ${sum}`;
+    },
+  },
+  discount: {
+    description: 'Apply a percentage discount to a price',
+    args: '{ "price": 120, "percent": 25 }',
+    enabled: () => true,
+    run: ({ price, percent }) => {
+      const p = Number(price); const off = p * (Number(percent) || 0) / 100;
+      return `$${p} − ${percent}% = $${(p - off).toFixed(2)} (saved $${off.toFixed(2)})`;
+    },
+  },
+  interest: {
+    description: 'Compound interest over time',
+    args: '{ "principal": 1000, "ratePct": 5, "years": 10 }',
+    enabled: () => true,
+    run: ({ principal, ratePct, years }) => {
+      const p = Number(principal); const r = Number(ratePct) / 100; const y = Number(years);
+      const total = p * Math.pow(1 + r, y);
+      return `$${p} at ${ratePct}%/yr for ${y}y = $${total.toFixed(2)} (interest $${(total - p).toFixed(2)})`;
+    },
+  },
+  countdown_timer: {
+    description: 'Time remaining until a date/time',
+    args: '{ "target": "2025-12-31T23:59:59" }',
+    enabled: () => true,
+    run: ({ target }) => {
+      const t = new Date(target); if (isNaN(t)) throw new Error('give a date/time');
+      let s = Math.floor((t.getTime() - Date.now()) / 1000);
+      if (s < 0) return 'That time has passed.';
+      const d = Math.floor(s / 86400); s %= 86400; const h = Math.floor(s / 3600); s %= 3600; const m = Math.floor(s / 60);
+      return `${d}d ${h}h ${m}m remaining`;
+    },
+  },
+  text_stats: {
+    description: 'Reading time and detailed stats for text',
+    args: '{ "text": "..." }',
+    enabled: () => true,
+    run: ({ text }) => {
+      const s = String(text || '');
+      const words = s.trim() ? s.trim().split(/\s+/).length : 0;
+      const sentences = (s.match(/[.!?]+/g) || []).length || (s.trim() ? 1 : 0);
+      const minutes = Math.max(1, Math.round(words / 200));
+      return `${words} words, ${sentences} sentences, ~${minutes} min read, ${s.length} chars`;
+    },
+  },
+  binary_text: {
+    description: 'Convert text to/from binary',
+    args: '{ "text": "Hi", "mode": "encode" }',
+    enabled: () => true,
+    run: ({ text, mode }) => {
+      if (mode === 'decode') {
+        return String(text).trim().split(/\s+/).map(b => String.fromCharCode(parseInt(b, 2))).join('');
+      }
+      return [...String(text)].map(c => c.charCodeAt(0).toString(2).padStart(8, '0')).join(' ');
+    },
+  },
+  emoji_kitchen: {
+    description: 'Describe or list emoji for a keyword (offline lookup)',
+    args: '{ "keyword": "happy" }',
+    enabled: () => true,
+    run: ({ keyword }) => {
+      const map = { happy: '😀 😄 😁 🙂 😊', sad: '😢 😞 😔 🙁 😭', love: '❤️ 😍 🥰 💕 💖', angry: '😠 😡 🤬 👿', fire: '🔥 🚒 🧯', money: '💰 💵 🤑 💸', party: '🎉 🥳 🎊 🎈', food: '🍕 🍔 🍟 🌮 🍣', star: '⭐ 🌟 ✨ 💫', ok: '👍 👌 ✅ 🆗', think: '🤔 💭 🧠' };
+      const k = String(keyword || '').toLowerCase();
+      return map[k] || Object.entries(map).find(([key]) => k.includes(key) || key.includes(k))?.[1] || 'No emoji found for that.';
+    },
+  },
 };
 
 module.exports = TOOLS;

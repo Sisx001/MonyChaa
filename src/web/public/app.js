@@ -619,7 +619,43 @@ async function loadMemory() {
   $$('[data-del-mem]').forEach(b => b.addEventListener('click', async () => {
     await api('/memories/' + b.dataset.delMem, { method: 'DELETE' }); loadMemory();
   }));
+
+  loadNotes().catch(() => {});
 }
+
+async function loadNotes() {
+  const notes = await api('/notes');
+  $('#notes-list').innerHTML = notes.length ? notes.map(n => `
+    <div class="note-card ${n.pinned ? 'pinned' : ''}">
+      <div class="note-head">
+        <b>${esc(n.title || 'Untitled')}</b>
+        <div class="note-actions">
+          <button class="chat-act" data-note-pin="${n.id}" title="${n.pinned ? 'Unpin' : 'Pin'}"><svg class="ic ic-sm ${n.pinned ? 'ic-gold' : ''}"><use href="#i-star"/></svg></button>
+          <button class="chat-act" data-note-edit="${n.id}" title="Edit"><svg class="ic ic-sm"><use href="#i-edit"/></svg></button>
+          <button class="chat-act" data-note-del="${n.id}" title="Delete"><svg class="ic ic-sm"><use href="#i-trash"/></svg></button>
+        </div>
+      </div>
+      <div class="note-body">${esc(n.body || '')}</div>
+    </div>`).join('') : '<p class="hint">No notes yet.</p>';
+  $$('[data-note-pin]').forEach(b => b.addEventListener('click', async () => {
+    const n = notes.find(x => x.id == b.dataset.notePin);
+    await api('/notes', { method: 'POST', body: { id: n.id, title: n.title, body: n.body, pinned: n.pinned ? 0 : 1 } });
+    loadNotes();
+  }));
+  $$('[data-note-del]').forEach(b => b.addEventListener('click', async () => {
+    await api('/notes/' + b.dataset.noteDel, { method: 'DELETE' }); loadNotes();
+  }));
+  $$('[data-note-edit]').forEach(b => b.addEventListener('click', () => editNote(notes.find(x => x.id == b.dataset.noteEdit))));
+}
+function editNote(n) {
+  const title = prompt('Title:', n?.title || '');
+  if (title === null) return;
+  const body = prompt('Note:', n?.body || '');
+  if (body === null) return;
+  api('/notes', { method: 'POST', body: { id: n?.id, title, body, pinned: n?.pinned || 0 } })
+    .then(() => { toast('Note saved'); loadNotes(); }).catch(e => toast(e.message, false));
+}
+$('#note-add')?.addEventListener('click', () => editNote(null));
 $('#fact-add').addEventListener('click', async () => {
   try {
     await api('/facts', { method: 'POST', body: { key: $('#fact-key').value, value: $('#fact-value').value, priority: $('#fact-priority').value } });
