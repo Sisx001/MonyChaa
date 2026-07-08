@@ -215,6 +215,143 @@ const TOOLS = {
       return (j || []).slice(0, 12).map(h => `${h.date}: ${h.localName}`).join('\n') || 'No holidays found.';
     },
   },
+
+  // ---- second utility batch ----
+  morse: {
+    description: 'Encode or decode Morse code',
+    args: '{ "text": "SOS", "mode": "encode" }',
+    enabled: () => true,
+    run: ({ text, mode }) => {
+      const M = { A: '.-', B: '-...', C: '-.-.', D: '-..', E: '.', F: '..-.', G: '--.', H: '....', I: '..', J: '.---', K: '-.-', L: '.-..', M: '--', N: '-.', O: '---', P: '.--.', Q: '--.-', R: '.-.', S: '...', T: '-', U: '..-', V: '...-', W: '.--', X: '-..-', Y: '-.--', Z: '--..', 0: '-----', 1: '.----', 2: '..---', 3: '...--', 4: '....-', 5: '.....', 6: '-....', 7: '--...', 8: '---..', 9: '----.', ' ': '/' };
+      if (mode === 'decode') {
+        const R = Object.fromEntries(Object.entries(M).map(([k, v]) => [v, k]));
+        return String(text).trim().split(/\s+/).map(c => R[c] || '').join('');
+      }
+      return [...String(text).toUpperCase()].map(c => M[c] || '').join(' ').trim();
+    },
+  },
+  number_base: {
+    description: 'Convert a number between binary, octal, decimal and hex',
+    args: '{ "value": "255", "from": 10, "to": 16 }',
+    enabled: () => true,
+    run: ({ value, from, to }) => {
+      const n = parseInt(String(value), Number(from) || 10);
+      if (isNaN(n)) throw new Error('invalid number for that base');
+      return `${value} (base ${from || 10}) = ${n.toString(Number(to) || 16)} (base ${to || 16})`;
+    },
+  },
+  roman: {
+    description: 'Convert to/from Roman numerals',
+    args: '{ "value": 2024 }  or  { "value": "MMXXIV" }',
+    enabled: () => true,
+    run: ({ value }) => {
+      const map = [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']];
+      if (/^\d+$/.test(String(value))) {
+        let n = Number(value); if (n < 1 || n > 3999) throw new Error('1–3999 only'); let out = '';
+        for (const [v, s] of map) while (n >= v) { out += s; n -= v; }
+        return out;
+      }
+      const r = String(value).toUpperCase(); let i = 0, total = 0;
+      for (const [v, s] of map) while (r.startsWith(s, i)) { total += v; i += s.length; }
+      return String(total);
+    },
+  },
+  age_calculator: {
+    description: 'Calculate age from a birthdate (YYYY-MM-DD)',
+    args: '{ "birthdate": "1990-05-15" }',
+    enabled: () => true,
+    run: ({ birthdate }) => {
+      const b = new Date(birthdate); if (isNaN(b)) throw new Error('use YYYY-MM-DD');
+      const days = Math.floor((Date.now() - b.getTime()) / 86400000);
+      const years = Math.floor(days / 365.25);
+      return `${years} years old (~${days.toLocaleString()} days)`;
+    },
+  },
+  bmi_calculator: {
+    description: 'Calculate BMI from weight (kg) and height (cm)',
+    args: '{ "weightKg": 70, "heightCm": 175 }',
+    enabled: () => true,
+    run: ({ weightKg, heightCm }) => {
+      const h = Number(heightCm) / 100; const bmi = Number(weightKg) / (h * h);
+      const cat = bmi < 18.5 ? 'underweight' : bmi < 25 ? 'normal' : bmi < 30 ? 'overweight' : 'obese';
+      return `BMI ${bmi.toFixed(1)} (${cat})`;
+    },
+  },
+  tip_calculator: {
+    description: 'Split a bill with tip',
+    args: '{ "bill": 84.50, "tipPct": 18, "people": 4 }',
+    enabled: () => true,
+    run: ({ bill, tipPct, people }) => {
+      const b = Number(bill); const tip = b * (Number(tipPct) || 0) / 100; const total = b + tip;
+      const per = total / (Number(people) || 1);
+      return `Tip $${tip.toFixed(2)}, total $${total.toFixed(2)}${people > 1 ? `, $${per.toFixed(2)} each (${people})` : ''}`;
+    },
+  },
+  percentage: {
+    description: 'Percentage calculations',
+    args: '{ "value": 40, "of": 200 }',
+    enabled: () => true,
+    run: ({ value, of }) => `${value} is ${((Number(value) / Number(of)) * 100).toFixed(2)}% of ${of}`,
+  },
+  days_until: {
+    description: 'Days until (or since) a date',
+    args: '{ "date": "2025-12-25" }',
+    enabled: () => true,
+    run: ({ date }) => {
+      const d = new Date(date); if (isNaN(d)) throw new Error('use YYYY-MM-DD');
+      const days = Math.round((d.getTime() - Date.now()) / 86400000);
+      return days === 0 ? 'That is today.' : days > 0 ? `${days} days until ${date}` : `${-days} days since ${date}`;
+    },
+  },
+  day_of_week: {
+    description: 'What day of the week a date falls on',
+    args: '{ "date": "2025-07-04" }',
+    enabled: () => true,
+    run: ({ date }) => {
+      const d = new Date(date); if (isNaN(d)) throw new Error('use YYYY-MM-DD');
+      return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+    },
+  },
+  world_time: {
+    description: 'Current time in a timezone (IANA name)',
+    args: '{ "timezone": "Asia/Tokyo" }',
+    enabled: () => true,
+    run: ({ timezone }) => {
+      try { return new Date().toLocaleString('en-US', { timeZone: timezone || 'UTC', dateStyle: 'full', timeStyle: 'long' }); }
+      catch { throw new Error('unknown timezone — use IANA names like Asia/Tokyo'); }
+    },
+  },
+  json_tool: {
+    description: 'Validate and pretty-print JSON',
+    args: '{ "json": "{\\"a\\":1}" }',
+    enabled: () => true,
+    run: ({ json }) => {
+      try { return JSON.stringify(JSON.parse(json), null, 2); }
+      catch (e) { return `Invalid JSON: ${e.message}`; }
+    },
+  },
+  slugify: {
+    description: 'Turn text into a URL slug',
+    args: '{ "text": "Hello World!" }',
+    enabled: () => true,
+    run: ({ text }) => String(text).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''),
+  },
+  color_convert: {
+    description: 'Convert a hex color to RGB (and back)',
+    args: '{ "color": "#7c6cff" }',
+    enabled: () => true,
+    run: ({ color }) => {
+      const c = String(color).trim();
+      const hex = /^#?([0-9a-f]{6})$/i.exec(c);
+      if (hex) {
+        const n = parseInt(hex[1], 16);
+        return `#${hex[1]} = rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
+      }
+      const rgb = /(\d+)[,\s]+(\d+)[,\s]+(\d+)/.exec(c);
+      if (rgb) return `rgb(${rgb[1]}, ${rgb[2]}, ${rgb[3]}) = #${[rgb[1], rgb[2], rgb[3]].map(x => Number(x).toString(16).padStart(2, '0')).join('')}`;
+      throw new Error('give a hex like #7c6cff or rgb like 124,108,255');
+    },
+  },
 };
 
 module.exports = TOOLS;

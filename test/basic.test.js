@@ -96,6 +96,17 @@ test('utility tools: pure-computation tools produce correct output', async () =>
   assert.ok(['Heads', 'Tails'].includes(await TOOLS.coin_flip.run({})));
   assert.match(await TOOLS.dice.run({ notation: '2d6' }), /2d6:/);
   assert.strictEqual(await TOOLS.text_transform.run({ text: 'aB', mode: 'reverse' }), 'Ba');
+  // second batch
+  assert.strictEqual(await TOOLS.morse.run({ text: 'SOS', mode: 'encode' }), '... --- ...');
+  assert.strictEqual(await TOOLS.morse.run({ text: '... --- ...', mode: 'decode' }), 'SOS');
+  assert.strictEqual(await TOOLS.roman.run({ value: 2024 }), 'MMXXIV');
+  assert.strictEqual(await TOOLS.roman.run({ value: 'MMXXIV' }), '2024');
+  assert.match(await TOOLS.number_base.run({ value: '255', from: 10, to: 16 }), /= ff/);
+  assert.match(await TOOLS.bmi_calculator.run({ weightKg: 70, heightCm: 175 }), /22\.9 \(normal\)/);
+  assert.strictEqual(await TOOLS.slugify.run({ text: 'Hello World!' }), 'hello-world');
+  assert.match(await TOOLS.color_convert.run({ color: '#7c6cff' }), /rgb\(124, 108, 255\)/);
+  assert.match(await TOOLS.percentage.run({ value: 40, of: 200 }), /20\.00%/);
+  assert.match(await TOOLS.json_tool.run({ json: '{"a":1}' }), /"a": 1/);
 });
 
 test('reply post-processing: strip markdown, links cap, phone redaction, signature', () => {
