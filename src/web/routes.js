@@ -75,6 +75,21 @@ router.delete('/prompts/versions/:id', wrap((req, res) => {
   res.json({ ok: true });
 }));
 
+// ---------- Prompt snippets (reusable prompt building blocks) ----------
+router.get('/snippets', wrap((req, res) => {
+  res.json(db.prepare('SELECT * FROM snippets ORDER BY id DESC').all());
+}));
+router.post('/snippets', wrap((req, res) => {
+  const { title, content } = req.body;
+  if (!content) return res.status(400).json({ error: 'content required' });
+  db.prepare('INSERT INTO snippets (title, content) VALUES (?, ?)').run(title || 'Snippet', content);
+  res.json({ ok: true });
+}));
+router.delete('/snippets/:id', wrap((req, res) => {
+  db.prepare('DELETE FROM snippets WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+}));
+
 // Preview the fully-built prompt for a contact (template vars resolved).
 router.get('/prompts/preview', wrap((req, res) => {
   const contact = req.query.chat_id
@@ -517,8 +532,8 @@ router.get('/security/sessions', wrap(async (req, res) => {
 router.get('/security/audit', wrap((req, res) => {
   res.json(db.prepare('SELECT * FROM audit_log ORDER BY id DESC LIMIT 150').all());
 }));
-router.get('/security/bans', wrap((req, res) => {
-  res.json(db.prepare('SELECT * FROM banned_ips ORDER BY created_at DESC').all());
+router.get('/security/bans', wrap(async (req, res) => {
+  res.json(await withGeo(db.prepare('SELECT * FROM banned_ips ORDER BY created_at DESC').all()));
 }));
 router.post('/security/bans', wrap((req, res) => {
   const ip = String(req.body.ip || '').trim();
@@ -727,7 +742,7 @@ router.get('/backup', wrap((req, res) => {
   const settings = db.prepare('SELECT key, value FROM settings').all()
     .filter(s => withSecrets || !s.key.startsWith('apikey_'));
   dump.settings = settings;
-  for (const t of ['contacts', 'facts', 'memories', 'prompt_versions', 'scheduled_messages', 'skills']) {
+  for (const t of ['contacts', 'facts', 'memories', 'prompt_versions', 'scheduled_messages', 'skills', 'snippets']) {
     dump[t] = db.prepare(`SELECT * FROM ${t}`).all();
   }
   dump.mcp_servers = db.prepare('SELECT * FROM mcp_servers').all()
@@ -780,6 +795,11 @@ router.post('/restore', wrap((req, res) => {
       const ins = db.prepare('INSERT INTO assistants (name, bot_token, owner_user_id, system_prompt, settings_json, enabled) VALUES (?, ?, ?, ?, ?, ?)');
       for (const a of dump.assistants) if (a.name) ins.run(a.name, a.bot_token || null, a.owner_user_id || null, a.system_prompt || null, a.settings_json || '{}', a.enabled ?? 1);
       counts.assistants = dump.assistants.length;
+    }
+    if (Array.isArray(dump.snippets)) {
+      const ins = db.prepare('INSERT INTO snippets (title, content) VALUES (?, ?)');
+      for (const s of dump.snippets) if (s.content) ins.run(s.title || 'Snippet', s.content);
+      counts.snippets = dump.snippets.length;
     }
   });
   tx();

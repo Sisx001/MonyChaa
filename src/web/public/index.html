@@ -223,6 +223,16 @@
         </div>
       </div>
       <div class="card">
+        <h3><svg class="ic ic-sm"><use href="#i-copy"/></svg> Prompt snippets</h3>
+        <p class="hint">Reusable building blocks — click to insert into the editor at the cursor.</p>
+        <div class="input-row">
+          <input id="snippet-title" placeholder="Title" style="max-width:200px">
+          <input id="snippet-content" placeholder="Snippet text…" style="flex:2">
+          <button class="btn btn-primary" id="snippet-add"><svg class="ic ic-sm"><use href="#i-plus"/></svg> Save</button>
+        </div>
+        <div id="snippets-list" class="preset-row"></div>
+      </div>
+      <div class="card">
         <h3>Custom context blocks</h3>
         <p class="hint">Live data injected into every prompt (cached 10 min).</p>
         <div class="form-grid">

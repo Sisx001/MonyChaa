@@ -244,6 +244,7 @@ async function loadPrompt() {
   $('#prompt-editor').value = currentSettings.system_prompt || '';
   for (const el of $$('[data-ctx-setting]')) el.value = currentSettings[el.dataset.ctxSetting] ?? '';
   loadCharacters().catch(() => {});
+  loadSnippets().catch(() => {});
   const presets = await api('/prompts/presets');
   $('#preset-row').innerHTML = Object.keys(presets).map(name =>
     `<button class="btn btn-sm ${currentSettings.active_preset === name ? 'btn-primary' : ''}" data-preset="${esc(name)}">${esc(name)}</button>`
@@ -315,6 +316,35 @@ $('#save-version').addEventListener('click', async () => {
   await api('/prompts/versions', { method: 'POST', body: { name, content: $('#prompt-editor').value } });
   toast('Version saved');
   loadVersions();
+});
+// Prompt snippets
+async function loadSnippets() {
+  const rows = await api('/snippets');
+  const wrap = $('#snippets-list');
+  if (!wrap) return;
+  wrap.innerHTML = rows.length ? rows.map(s => `
+    <span class="snippet-chip">
+      <button class="btn btn-sm" data-snip="${s.id}" title="${esc(s.content)}">${esc(s.title)}</button>
+      <button class="btn btn-sm btn-danger snippet-del" data-snip-del="${s.id}"><svg class="ic ic-sm"><use href="#i-x"/></svg></button>
+    </span>`).join('') : '<span class="hint">No snippets yet.</span>';
+  $$('[data-snip]').forEach(b => b.addEventListener('click', () => {
+    const s = rows.find(x => x.id == b.dataset.snip);
+    const ta = $('#prompt-editor');
+    const pos = ta.selectionStart ?? ta.value.length;
+    ta.value = ta.value.slice(0, pos) + s.content + ta.value.slice(pos);
+    ta.focus();
+    toast('Snippet inserted');
+  }));
+  $$('[data-snip-del]').forEach(b => b.addEventListener('click', async () => {
+    await api('/snippets/' + b.dataset.snipDel, { method: 'DELETE' }); loadSnippets();
+  }));
+}
+$('#snippet-add')?.addEventListener('click', async () => {
+  const content = $('#snippet-content').value.trim();
+  if (!content) return toast('Snippet text required', false);
+  await api('/snippets', { method: 'POST', body: { title: $('#snippet-title').value || 'Snippet', content } });
+  $('#snippet-title').value = ''; $('#snippet-content').value = '';
+  toast('Snippet saved'); loadSnippets();
 });
 $('#diff-close')?.addEventListener('click', () => $('#diff-card').style.display = 'none');
 $('#save-context').addEventListener('click', async () => {
@@ -1227,7 +1257,7 @@ async function loadSecurity() {
   }));
 
   $('#bans-table tbody').innerHTML = bans.length ? bans.map(b => `
-    <tr><td>${esc(b.ip)}</td><td>${esc(b.reason || '')}</td><td>${fmtTime(b.created_at)}</td>
+    <tr><td>${b.flag ? b.flag + ' ' : ''}${esc(b.ip)}${b.country ? ` <span class="hint">${esc(b.country)}</span>` : ''}</td><td>${esc(b.reason || '')}</td><td>${fmtTime(b.created_at)}</td>
     <td><button class="btn btn-sm" data-unban="${esc(b.ip)}">Unban</button></td></tr>`).join('')
     : '<tr><td colspan="4" class="hint">No banned IPs</td></tr>';
   $$('[data-unban]').forEach(b => b.addEventListener('click', async () => {

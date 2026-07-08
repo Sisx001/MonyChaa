@@ -575,3 +575,7 @@ input, select, textarea { backdrop-filter: blur(6px); }
   border-radius: 0 3px 3px 0;
 }
 #progress-bar.active { opacity: 1; }
+
+/* Prompt snippet chips */
+.snippet-chip { display: inline-flex; align-items: center; gap: 2px; }
+.snippet-chip .snippet-del { padding: 4px 6px; }

@@ -227,6 +227,13 @@ CREATE TABLE IF NOT EXISTS assistants (
   last_error TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS snippets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT,
+  content TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
 `);
 
 // Additive migrations for existing databases.
