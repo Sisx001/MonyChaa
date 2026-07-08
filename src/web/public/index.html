@@ -115,7 +115,11 @@
         <input type="checkbox" id="qt-typing" data-qt="typing_simulation"><span class="slider"></span>
         <span class="switch-label"><svg class="ic ic-sm"><use href="#i-keyboard"/></svg> Typing</span>
       </label>
-      <div class="topbar-right" id="topbar-model"></div>
+      <div class="topbar-actions">
+        <div class="topbar-right" id="topbar-model"></div>
+        <button class="icon-btn" id="cmdk-open" title="Command palette (Ctrl/Cmd + K)"><svg class="ic ic-sm"><use href="#i-search"/></svg></button>
+        <button class="icon-btn" id="theme-toggle" title="Toggle theme"><svg class="ic ic-sm"><use href="#i-moon"/></svg></button>
+      </div>
     </div>
 
     <!-- ============ DASHBOARD ============ -->
@@ -904,6 +908,18 @@
     <input type="text" id="login-totp" placeholder="2FA code (if enabled)" inputmode="numeric" autocomplete="one-time-code" style="margin-bottom:10px;display:none">
     <button class="btn btn-primary btn-lg" id="login-btn" style="width:100%">Sign in</button>
     <p class="hint" id="login-error" style="color:var(--red);margin-top:8px"></p>
+  </div>
+</div>
+
+<!-- Command palette -->
+<div class="cmdk-backdrop" id="cmdk">
+  <div class="cmdk">
+    <div class="cmdk-input-row">
+      <svg class="ic"><use href="#i-search"/></svg>
+      <input class="cmdk-input" id="cmdk-input" placeholder="Search tabs, actions, settings…" autocomplete="off">
+      <span class="cmdk-hint">ESC</span>
+    </div>
+    <div class="cmdk-list" id="cmdk-list"></div>
   </div>
 </div>
 

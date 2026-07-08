@@ -102,6 +102,79 @@ $$('.nav-btn').forEach(btn => btn.addEventListener('click', () => {
   loaders[btn.dataset.tab]?.();
 }));
 
+// ---------- theme ----------
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  localStorage.setItem('sp_theme', t);
+  const ic = document.querySelector('#theme-toggle use');
+  if (ic) ic.setAttribute('href', t === 'light' ? '#i-moon' : '#i-globe');
+}
+applyTheme(localStorage.getItem('sp_theme') || 'dark');
+$('#theme-toggle')?.addEventListener('click', () =>
+  applyTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light'));
+
+// ---------- command palette ----------
+function switchTab(name) {
+  const btn = document.querySelector(`[data-tab="${name}"]`);
+  if (btn) btn.click();
+}
+const CMDK_COMMANDS = [
+  ...['dashboard', 'chat', 'prompt', 'gateway', 'memory', 'library', 'contacts', 'tools', 'logs', 'assistants', 'system', 'security', 'settings']
+    .map(t => ({ group: 'Navigate', label: 'Go to ' + t[0].toUpperCase() + t.slice(1), icon: 'i-grid', run: () => switchTab(t) })),
+  { group: 'Actions', label: 'Toggle auto-reply', icon: 'i-power', run: () => $('#qt-bot')?.click() },
+  { group: 'Actions', label: 'Toggle away mode', icon: 'i-moon', run: () => $('#qt-away')?.click() },
+  { group: 'Actions', label: 'Toggle theme (light/dark)', icon: 'i-globe', run: () => $('#theme-toggle')?.click() },
+  { group: 'Actions', label: 'New assistant', icon: 'i-plus', run: () => { switchTab('assistants'); setTimeout(() => $('#asst-add')?.click(), 250); } },
+  { group: 'Actions', label: 'New skill', icon: 'i-package', run: () => { switchTab('library'); setTimeout(() => $('#skill-add')?.click(), 250); } },
+  { group: 'Actions', label: 'System auto-fix all', icon: 'i-heart-pulse', run: () => { switchTab('system'); setTimeout(() => $('#sys-autofix')?.click(), 250); } },
+  { group: 'Actions', label: 'Download backup', icon: 'i-download', run: () => { window.location = '/api/backup'; } },
+];
+let cmdkFiltered = [], cmdkIdx = 0;
+function openCmdk() {
+  $('#cmdk').classList.add('open');
+  $('#cmdk-input').value = '';
+  $('#cmdk-input').focus();
+  renderCmdk('');
+}
+function closeCmdk() { $('#cmdk').classList.remove('open'); }
+function renderCmdk(q) {
+  const query = q.toLowerCase().trim();
+  cmdkFiltered = CMDK_COMMANDS.filter(c => !query || c.label.toLowerCase().includes(query) || c.group.toLowerCase().includes(query));
+  cmdkIdx = 0;
+  if (!cmdkFiltered.length) { $('#cmdk-list').innerHTML = '<div class="cmdk-empty">No matches</div>'; return; }
+  let html = '', lastGroup = '';
+  cmdkFiltered.forEach((c, i) => {
+    if (c.group !== lastGroup) { html += `<div class="cmdk-group">${esc(c.group)}</div>`; lastGroup = c.group; }
+    html += `<div class="cmdk-item ${i === 0 ? 'active' : ''}" data-cmdk="${i}"><svg class="ic"><use href="#${c.icon}"/></svg>${esc(c.label)}</div>`;
+  });
+  $('#cmdk-list').innerHTML = html;
+  $$('[data-cmdk]').forEach(el => el.addEventListener('click', () => runCmdk(Number(el.dataset.cmdk))));
+}
+function runCmdk(i) { const c = cmdkFiltered[i]; if (c) { closeCmdk(); c.run(); } }
+function moveCmdk(delta) {
+  const items = $$('.cmdk-item');
+  if (!items.length) return;
+  items[cmdkIdx]?.classList.remove('active');
+  cmdkIdx = (cmdkIdx + delta + items.length) % items.length;
+  items[cmdkIdx]?.classList.add('active');
+  items[cmdkIdx]?.scrollIntoView({ block: 'nearest' });
+}
+$('#cmdk-open')?.addEventListener('click', openCmdk);
+$('#cmdk-input')?.addEventListener('input', e => renderCmdk(e.target.value));
+$('#cmdk')?.addEventListener('click', e => { if (e.target.id === 'cmdk') closeCmdk(); });
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); $('#cmdk').classList.contains('open') ? closeCmdk() : openCmdk(); return; }
+  if ($('#cmdk').classList.contains('open')) {
+    if (e.key === 'Escape') closeCmdk();
+    else if (e.key === 'ArrowDown') { e.preventDefault(); moveCmdk(1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); moveCmdk(-1); }
+    else if (e.key === 'Enter') { e.preventDefault(); runCmdk(cmdkIdx); }
+  } else if (e.key === 'Escape') {
+    // Close any open modal.
+    $$('.modal-backdrop').forEach(m => { if (m.style.display === 'flex') m.style.display = 'none'; });
+  }
+});
+
 // ---------- SSE live feed ----------
 let feedEnabled = true;
 function connectSSE() {
