@@ -107,6 +107,15 @@ test('utility tools: pure-computation tools produce correct output', async () =>
   assert.match(await TOOLS.color_convert.run({ color: '#7c6cff' }), /rgb\(124, 108, 255\)/);
   assert.match(await TOOLS.percentage.run({ value: 40, of: 200 }), /20\.00%/);
   assert.match(await TOOLS.json_tool.run({ json: '{"a":1}' }), /"a": 1/);
+  // third batch
+  assert.strictEqual(await TOOLS.gcd_lcm.run({ a: 12, b: 18 }), 'gcd(12, 18) = 6, lcm = 36');
+  assert.match(await TOOLS.is_prime.run({ number: 97 }), /is prime/);
+  assert.match(await TOOLS.is_prime.run({ number: 98 }), /not prime/);
+  assert.strictEqual(await TOOLS.factorial.run({ number: 5 }), '5! = 120');
+  assert.strictEqual(await TOOLS.fibonacci.run({ count: 7 }), '0, 1, 1, 2, 3, 5, 8');
+  assert.strictEqual(await TOOLS.case_convert.run({ text: 'Hello World', style: 'snake' }), 'hello_world');
+  assert.strictEqual(await TOOLS.case_convert.run({ text: 'hello world', style: 'camel' }), 'helloWorld');
+  assert.strictEqual(await TOOLS.reverse_text.run({ text: 'a b c', by: 'words' }), 'c b a');
 });
 
 test('reply post-processing: strip markdown, links cap, phone redaction, signature', () => {

@@ -244,8 +244,9 @@ async function loadDashboard() {
     ['Current model', '', s.currentModel],
   ];
   $('#stat-grid').innerHTML = tiles.map(([l, v, sub]) =>
-    `<div class="stat"><div class="label">${esc(l)}</div><div class="value">${esc(v)}</div>${sub ? `<div class="sub">${esc(sub)}</div>` : ''}</div>`
+    `<div class="stat"><div class="label">${esc(l)}</div><div class="value" data-countup="${esc(v)}">${esc(v)}</div>${sub ? `<div class="sub">${esc(sub)}</div>` : ''}</div>`
   ).join('');
+  animateCounters();
 
   // Hourly chart
   const hours = [...Array(24)].map((_, i) => String(i).padStart(2, '0'));
@@ -326,6 +327,29 @@ async function loadDashboard() {
   if (pa) pa.innerHTML = (s.perAssistant && s.perAssistant.length) ? s.perAssistant.map(a =>
     `<tr><td>${esc(a.name)}</td><td>${a.count}</td></tr>`).join('')
     : '<tr><td colspan="2" class="hint">No messages today</td></tr>';
+}
+// Animate numeric stat values counting up (respects reduced-motion).
+function animateCounters() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  $$('[data-countup]').forEach(el => {
+    const raw = el.dataset.countup;
+    const m = /^([$]?)([\d,]+(?:\.\d+)?)(.*)$/.exec(raw);
+    if (!m) return;
+    const prefix = m[1], suffix = m[3];
+    const target = parseFloat(m[2].replace(/,/g, ''));
+    if (!isFinite(target) || target === 0) return;
+    const decimals = (m[2].split('.')[1] || '').length;
+    const start = performance.now(), dur = 650;
+    const step = now => {
+      const p = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - p, 3);
+      const val = target * eased;
+      el.textContent = prefix + (decimals ? val.toFixed(decimals) : Math.round(val).toLocaleString()) + suffix;
+      if (p < 1) requestAnimationFrame(step);
+      else el.textContent = raw;
+    };
+    requestAnimationFrame(step);
+  });
 }
 function chartOpts() {
   return {

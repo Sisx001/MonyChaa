@@ -352,6 +352,122 @@ const TOOLS = {
       throw new Error('give a hex like #7c6cff or rgb like 124,108,255');
     },
   },
+
+  // ---- third utility batch ----
+  reverse_text: {
+    description: 'Reverse words or characters in text',
+    args: '{ "text": "hello world", "by": "words" }',
+    enabled: () => true,
+    run: ({ text, by }) => by === 'words' ? String(text).split(/\s+/).reverse().join(' ') : [...String(text)].reverse().join(''),
+  },
+  count_occurrences: {
+    description: 'Count how many times a substring appears in text',
+    args: '{ "text": "...", "needle": "a" }',
+    enabled: () => true,
+    run: ({ text, needle }) => {
+      if (!needle) return '0';
+      return String((String(text).match(new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')) || []).length);
+    },
+  },
+  gcd_lcm: {
+    description: 'Greatest common divisor and least common multiple of two integers',
+    args: '{ "a": 12, "b": 18 }',
+    enabled: () => true,
+    run: ({ a, b }) => {
+      let x = Math.abs(Number(a)), y = Math.abs(Number(b));
+      const g = (m, n) => (n ? g(n, m % n) : m);
+      const gcd = g(x, y);
+      return `gcd(${a}, ${b}) = ${gcd}, lcm = ${(x * y) / gcd}`;
+    },
+  },
+  is_prime: {
+    description: 'Check whether a number is prime',
+    args: '{ "number": 97 }',
+    enabled: () => true,
+    run: ({ number }) => {
+      const n = Number(number);
+      if (!Number.isInteger(n) || n < 2) return `${number} is not prime`;
+      for (let i = 2; i <= Math.sqrt(n); i++) if (n % i === 0) return `${number} is not prime (divisible by ${i})`;
+      return `${number} is prime`;
+    },
+  },
+  factorial: {
+    description: 'Compute the factorial of a number (0–170)',
+    args: '{ "number": 10 }',
+    enabled: () => true,
+    run: ({ number }) => {
+      const n = Number(number);
+      if (!Number.isInteger(n) || n < 0 || n > 170) throw new Error('0–170 only');
+      let f = 1; for (let i = 2; i <= n; i++) f *= i;
+      return `${n}! = ${f}`;
+    },
+  },
+  fibonacci: {
+    description: 'First N Fibonacci numbers',
+    args: '{ "count": 10 }',
+    enabled: () => true,
+    run: ({ count }) => {
+      const n = Math.min(Math.max(Number(count) || 10, 1), 50);
+      const out = [0, 1];
+      while (out.length < n) out.push(out[out.length - 1] + out[out.length - 2]);
+      return out.slice(0, n).join(', ');
+    },
+  },
+  char_count_map: {
+    description: 'Frequency of each character in text',
+    args: '{ "text": "hello" }',
+    enabled: () => true,
+    run: ({ text }) => {
+      const map = {};
+      for (const ch of String(text).replace(/\s/g, '')) map[ch] = (map[ch] || 0) + 1;
+      return Object.entries(map).sort((a, b) => b[1] - a[1]).map(([c, n]) => `${c}: ${n}`).join(', ') || '(empty)';
+    },
+  },
+  timestamp: {
+    description: 'Convert between Unix timestamp and human date',
+    args: '{ "value": 1700000000 }  or  { "value": "2024-01-01" }',
+    enabled: () => true,
+    run: ({ value }) => {
+      if (/^\d{9,13}$/.test(String(value))) {
+        const ms = String(value).length > 10 ? Number(value) : Number(value) * 1000;
+        return new Date(ms).toISOString();
+      }
+      const d = new Date(value);
+      if (isNaN(d)) throw new Error('give a unix timestamp or a date');
+      return `${Math.floor(d.getTime() / 1000)} (unix seconds)`;
+    },
+  },
+  case_convert: {
+    description: 'Convert text to camelCase, snake_case or kebab-case',
+    args: '{ "text": "Hello World", "style": "snake" }',
+    enabled: () => true,
+    run: ({ text, style }) => {
+      const words = String(text).trim().split(/[\s_-]+/).filter(Boolean);
+      if (style === 'camel') return words.map((w, i) => i ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w.toLowerCase()).join('');
+      if (style === 'kebab') return words.map(w => w.toLowerCase()).join('-');
+      return words.map(w => w.toLowerCase()).join('_');
+    },
+  },
+  random_pick: {
+    description: 'Pick a random item from a comma-separated list',
+    args: '{ "items": "pizza, sushi, tacos" }',
+    enabled: () => true,
+    run: ({ items }) => {
+      const list = String(items).split(',').map(s => s.trim()).filter(Boolean);
+      if (!list.length) throw new Error('give a comma-separated list');
+      return list[crypto.randomInt(list.length)];
+    },
+  },
+  shuffle: {
+    description: 'Shuffle a comma-separated list randomly',
+    args: '{ "items": "a, b, c, d" }',
+    enabled: () => true,
+    run: ({ items }) => {
+      const list = String(items).split(',').map(s => s.trim()).filter(Boolean);
+      for (let i = list.length - 1; i > 0; i--) { const j = crypto.randomInt(i + 1); [list[i], list[j]] = [list[j], list[i]]; }
+      return list.join(', ');
+    },
+  },
 };
 
 module.exports = TOOLS;
