@@ -507,6 +507,45 @@ router.delete('/users/:id', wrap((req, res) => {
   res.json({ ok: true });
 }));
 
+// ---------- Two-factor auth (TOTP) ----------
+const totp = require('./totp');
+
+// Begin setup: returns a fresh secret + otpauth URL (not yet enabled).
+router.post('/2fa/setup', wrap((req, res) => {
+  if (!req.user) return res.status(400).json({ error: '2FA needs an account (set ADMIN_PASSWORD)' });
+  const secret = totp.generateSecret();
+  // Stash the pending secret on the session row until confirmed.
+  db.prepare('UPDATE admin_users SET totp_secret = ? WHERE id = ? AND totp_secret IS NULL').run('pending:' + secret, req.user.id);
+  res.json({ secret, otpauth: totp.otpauthUrl(secret, req.user.username) });
+}));
+
+// Confirm setup with a valid code → activates 2FA.
+router.post('/2fa/enable', wrap((req, res) => {
+  if (!req.user) return res.status(400).json({ error: 'no account' });
+  const row = db.prepare('SELECT totp_secret FROM admin_users WHERE id = ?').get(req.user.id);
+  const pending = row?.totp_secret?.startsWith('pending:') ? row.totp_secret.slice(8) : null;
+  if (!pending) return res.status(400).json({ error: 'start setup first' });
+  if (!totp.verify(pending, req.body?.totp)) return res.status(400).json({ error: 'code did not match — try again' });
+  db.prepare('UPDATE admin_users SET totp_secret = ? WHERE id = ?').run(pending, req.user.id);
+  auth.audit(req, '2fa_enable', req.user.username, req.user);
+  res.json({ ok: true });
+}));
+
+router.post('/2fa/disable', wrap((req, res) => {
+  if (!req.user) return res.status(400).json({ error: 'no account' });
+  const row = db.prepare('SELECT pass_hash FROM admin_users WHERE id = ?').get(req.user.id);
+  if (!auth.verifyPassword(req.body?.password || '', row.pass_hash)) return res.status(401).json({ error: 'password required to disable 2FA' });
+  db.prepare('UPDATE admin_users SET totp_secret = NULL WHERE id = ?').run(req.user.id);
+  auth.audit(req, '2fa_disable', req.user.username, req.user);
+  res.json({ ok: true });
+}));
+
+router.get('/2fa/status', wrap((req, res) => {
+  if (!req.user) return res.json({ enabled: false, available: false });
+  const row = db.prepare('SELECT totp_secret FROM admin_users WHERE id = ?').get(req.user.id);
+  res.json({ available: true, enabled: Boolean(row?.totp_secret) && !row.totp_secret.startsWith('pending:') });
+}));
+
 // ---------- Security: login attempts, sessions, IP bans, audit ----------
 const geoip = require('./geoip');
 

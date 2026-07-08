@@ -303,6 +303,23 @@ test('geoip: flag emoji + private IP detection', () => {
   assert.ok(!geo.isPrivate('8.8.8.8'));
 });
 
+test('totp: matches RFC 6238 test vector and verifies with skew', () => {
+  const totp = require('../src/web/totp');
+  // RFC 6238 SHA1 test secret is the ASCII "12345678901234567890".
+  const secret = totp.base32Encode(Buffer.from('12345678901234567890'));
+  // At Unix time 59s the 8-digit TOTP is 94287082 → 6-digit is 287082.
+  assert.strictEqual(totp.code(secret, 59_000, 30, 8), '94287082');
+  assert.strictEqual(totp.code(secret, 59_000, 30, 6), '287082');
+  // verify() accepts the current code and rejects a wrong one.
+  const now = totp.code(secret);
+  assert.ok(totp.verify(secret, now));
+  assert.ok(!totp.verify(secret, '000000'));
+  assert.ok(!totp.verify(secret, ''));
+  // Round-trip a random secret.
+  const s2 = totp.generateSecret();
+  assert.ok(totp.verify(s2, totp.code(s2)));
+});
+
 test('ssrf: blocks private, loopback, link-local and metadata addresses', async () => {
   const { assertSafeUrl, ipIsPrivate } = require('../src/tools/ssrf');
   assert.ok(ipIsPrivate('127.0.0.1'));

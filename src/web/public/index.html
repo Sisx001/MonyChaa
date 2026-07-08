@@ -548,6 +548,18 @@
       <h1>Security</h1>
       <div class="card">
         <div class="row-between">
+          <h3><svg class="ic ic-sm"><use href="#i-lock"/></svg> Two-factor authentication</h3>
+          <span id="twofa-status" class="badge badge-gray">…</span>
+        </div>
+        <p class="hint">Add a TOTP second factor (Google Authenticator, Authy, 1Password…) to your account.</p>
+        <div id="twofa-setup"></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="twofa-enable-btn"><svg class="ic ic-sm"><use href="#i-lock"/></svg> Enable 2FA</button>
+          <button class="btn btn-danger" id="twofa-disable-btn" style="display:none"><svg class="ic ic-sm"><use href="#i-x"/></svg> Disable 2FA</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="row-between">
           <h3><svg class="ic ic-sm"><use href="#i-users"/></svg> Admin accounts</h3>
           <button class="btn btn-primary" id="user-add"><svg class="ic ic-sm"><use href="#i-user-plus"/></svg> Add user</button>
         </div>
@@ -856,6 +868,7 @@
     <p class="hint">Sign in to continue.</p>
     <input type="text" id="login-username" placeholder="Username" autocomplete="username" style="margin:10px 0 8px" value="admin">
     <input type="password" id="login-password" placeholder="Password" autocomplete="current-password" style="margin-bottom:10px">
+    <input type="text" id="login-totp" placeholder="2FA code (if enabled)" inputmode="numeric" autocomplete="one-time-code" style="margin-bottom:10px;display:none">
     <button class="btn btn-primary btn-lg" id="login-btn" style="width:100%">Sign in</button>
     <p class="hint" id="login-error" style="color:var(--red);margin-top:8px"></p>
   </div>

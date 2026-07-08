@@ -102,6 +102,7 @@ Owner commands (DM the bot): `/status`, `/away`, `/pause`, `/summary`, `/id`, `/
 - **Accounts** — Security → Add user. Roles: **owner** (full), **admin** (all but delete accounts), **viewer** (read-only). Passwords are scrypt-hashed with per-user salt.
 - **Bootstrap** — first boot seeds one `owner` account from `ADMIN_USER` (default `admin`) + `ADMIN_PASSWORD`. With no accounts and no password, the panel is open (localhost dev only).
 - **Sessions** — HttpOnly cookies, DB-backed, 7-day expiry. Set `COOKIE_SECURE=1` behind HTTPS.
+- **Two-factor auth (TOTP)** — Security → Two-factor authentication. Scan the QR with any authenticator app (Google Authenticator, Authy, 1Password), confirm a code, and logins then require the 6-digit code. Disable requires your password. RFC 6238, ±1 step skew tolerance.
 - **Brute-force lockout** — 6 failed logins per IP in 15 min → temporary block.
 - **IP bans** — ban any IP (one click from a failed attempt, or manually). Banned IPs are refused everywhere and their sessions killed.
 - **Audit log** — every login, user change, ban, restart, character apply, autofix is recorded with IP.

@@ -57,18 +57,22 @@ function showLogin() {
 }
 async function doLogin() {
   $('#login-error').textContent = '';
+  const body = { username: $('#login-username').value, password: $('#login-password').value };
+  const totp = $('#login-totp').value.trim();
+  if (totp) body.totp = totp;
   const res = await fetch('/api/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: $('#login-username').value, password: $('#login-password').value }),
+    body: JSON.stringify(body),
   });
   const j = await res.json().catch(() => ({}));
   if (res.ok) {
     $('#login-overlay').style.display = 'none';
-    $('#login-password').value = '';
+    $('#login-password').value = ''; $('#login-totp').value = '';
     loadDashboard().catch(() => {});
     loadTopbar().catch(() => {});
   } else {
+    if (j.totpRequired) $('#login-totp').style.display = 'block';
     $('#login-error').textContent = j.error || 'Sign-in failed';
   }
 }
@@ -1239,7 +1243,53 @@ $('#sys-restart').addEventListener('click', async () => {
 });
 
 // ---------- SECURITY ----------
+async function load2fa() {
+  const st = $('#twofa-status');
+  if (!st) return;
+  try {
+    const s = await api('/2fa/status');
+    const on = s.enabled;
+    st.className = 'badge badge-' + (on ? 'green' : 'gray');
+    st.textContent = s.available ? (on ? 'enabled' : 'disabled') : 'auth off';
+    $('#twofa-enable-btn').style.display = on || !s.available ? 'none' : '';
+    $('#twofa-disable-btn').style.display = on ? '' : 'none';
+    if (!on) $('#twofa-setup').innerHTML = '';
+  } catch { /* ignore */ }
+}
+$('#twofa-enable-btn')?.addEventListener('click', async () => {
+  try {
+    const r = await api('/2fa/setup', { method: 'POST' });
+    const qr = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(r.otpauth)}`;
+    $('#twofa-setup').innerHTML = `
+      <div class="input-row" style="align-items:flex-start">
+        <img src="${esc(qr)}" alt="QR" style="border-radius:8px;background:#fff;padding:6px">
+        <div>
+          <p class="hint">Scan with your authenticator app, or enter this secret manually:</p>
+          <code>${esc(r.secret)}</code>
+          <div class="input-row" style="margin-top:10px">
+            <input id="twofa-code" placeholder="6-digit code" inputmode="numeric" style="max-width:140px">
+            <button class="btn btn-primary" id="twofa-confirm">Confirm &amp; enable</button>
+          </div>
+        </div>
+      </div>`;
+    $('#twofa-confirm').addEventListener('click', async () => {
+      try {
+        await api('/2fa/enable', { method: 'POST', body: { totp: $('#twofa-code').value } });
+        toast('2FA enabled — you\'ll need your code at next login');
+        load2fa();
+      } catch (e) { toast(e.message, false); }
+    });
+  } catch (e) { toast(e.message, false); }
+});
+$('#twofa-disable-btn')?.addEventListener('click', async () => {
+  const password = prompt('Enter your password to disable 2FA:');
+  if (password === null) return;
+  try { await api('/2fa/disable', { method: 'POST', body: { password } }); toast('2FA disabled'); load2fa(); }
+  catch (e) { toast(e.message, false); }
+});
+
 async function loadSecurity() {
+  load2fa().catch(() => {});
   const [users, sessions, attempts, bans, audit] = await Promise.all([
     api('/users').catch(() => []), api('/security/sessions'), api('/security/attempts'),
     api('/security/bans'), api('/security/audit'),

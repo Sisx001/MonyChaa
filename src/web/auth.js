@@ -149,6 +149,18 @@ function loginHandler(req, res) {
     record(false);
     return res.status(401).json({ error: 'Invalid credentials' });
   }
+  // Second factor, when the account has 2FA enabled.
+  if (user.totp_secret) {
+    const totp = require('./totp');
+    if (!req.body?.totp) {
+      record(false);
+      return res.status(401).json({ error: 'two-factor code required', totpRequired: true });
+    }
+    if (!totp.verify(user.totp_secret, req.body.totp)) {
+      record(false);
+      return res.status(401).json({ error: 'invalid two-factor code', totpRequired: true });
+    }
+  }
   record(true);
   db.prepare("UPDATE admin_users SET last_login = datetime('now'), last_ip = ? WHERE id = ?").run(ip, user.id);
   const token = createSession(user.id, req);
