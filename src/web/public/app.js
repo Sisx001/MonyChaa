@@ -147,7 +147,7 @@ $$('[data-qt]').forEach(el => el.addEventListener('change', async () => {
 loadTopbar().catch(() => {});
 
 // ---------- DASHBOARD ----------
-let chartHourly, chartCost;
+let chartHourly, chartCost, chartVolume;
 async function loadDashboard() {
   const s = await api('/stats');
   const up = s.uptimeSec;
@@ -196,6 +196,30 @@ async function loadDashboard() {
     },
     options: { plugins: { legend: { position: 'right', labels: { color: '#7d8496', boxWidth: 12 } } } },
   });
+
+  // 14-day volume line chart
+  const vol = s.dailyVolume || [];
+  const vctx = $('#chart-volume');
+  if (vctx) {
+    chartVolume?.destroy();
+    chartVolume = new Chart(vctx, {
+      type: 'line',
+      data: {
+        labels: vol.map(v => v.day),
+        datasets: [
+          { label: 'Incoming', data: vol.map(v => v.incoming), borderColor: '#56c9ff', backgroundColor: 'rgba(86,201,255,.12)', fill: true, tension: .35, pointRadius: 2 },
+          { label: 'Outgoing', data: vol.map(v => v.outgoing), borderColor: '#37e0a0', backgroundColor: 'rgba(55,224,160,.12)', fill: true, tension: .35, pointRadius: 2 },
+        ],
+      },
+      options: {
+        plugins: { legend: { labels: { color: '#7d8496', boxWidth: 12, font: { size: 11 } } } },
+        scales: {
+          x: { ticks: { color: '#7d8496', font: { size: 10 } }, grid: { color: '#23262f' } },
+          y: { ticks: { color: '#7d8496', precision: 0 }, grid: { color: '#23262f' }, beginAtZero: true },
+        },
+      },
+    });
+  }
 
   // Per-provider usage table
   $('#usage-table tbody').innerHTML = s.perProvider.length ? s.perProvider.map(p => `

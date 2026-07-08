@@ -50,9 +50,26 @@ function stats() {
     WHERE m.created_at >= date('now') GROUP BY m.assistant_id ORDER BY count DESC
   `).all();
 
+  // Daily message volume for the last 14 days (fills gaps with 0 in JS).
+  const volRows = db.prepare(`
+    SELECT date(created_at) day,
+      SUM(CASE WHEN direction = 'incoming' THEN 1 ELSE 0 END) incoming,
+      SUM(CASE WHEN direction = 'outgoing' THEN 1 ELSE 0 END) outgoing
+    FROM messages_log WHERE created_at >= date('now', '-13 days')
+    GROUP BY day
+  `).all();
+  const volMap = Object.fromEntries(volRows.map(r => [r.day, r]));
+  const dailyVolume = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+    const r = volMap[d] || {};
+    dailyVolume.push({ day: d.slice(5), incoming: r.incoming || 0, outgoing: r.outgoing || 0 });
+  }
+
   const health = db.prepare('SELECT * FROM provider_health ORDER BY provider').all();
 
   return {
+    dailyVolume,
     uptimeSec: Math.floor((Date.now() - startedAt) / 1000),
     msgsToday, msgsWeek, msgsMonth, activeChats,
     avgResponseMs: Math.round(avgResponse),
