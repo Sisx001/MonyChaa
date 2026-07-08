@@ -412,6 +412,29 @@
         </div>
       </div>
       <div class="card">
+        <h3><svg class="ic ic-sm"><use href="#i-zap"/></svg> Auto-responder rules</h3>
+        <p class="hint">Keyword-triggered instant replies that skip the LLM entirely — zero cost, deterministic. Checked before generation.</p>
+        <div class="input-row">
+          <input id="ar-trigger" placeholder="Trigger (keyword/phrase)" style="max-width:200px">
+          <select id="ar-match" style="max-width:130px"><option value="contains">contains</option><option value="exact">exact</option><option value="starts">starts with</option><option value="regex">regex</option></select>
+          <input id="ar-reply" placeholder="Instant reply…" style="flex:2">
+          <button class="btn btn-primary" id="ar-add"><svg class="ic ic-sm"><use href="#i-plus"/></svg> Add</button>
+        </div>
+        <table class="table" id="ar-table">
+          <thead><tr><th>Trigger</th><th>Match</th><th>Reply</th><th>Uses</th><th>On</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3><svg class="ic ic-sm"><use href="#i-send"/></svg> Broadcast</h3>
+        <p class="hint">Message all contacts reachable within Telegram's 24-hour window. Paced to avoid flood limits.</p>
+        <div class="input-row">
+          <select id="bc-filter" style="max-width:160px"><option value="all">All active contacts</option><option value="vip">VIP only</option></select>
+          <input id="bc-message" placeholder="Broadcast message…" style="flex:2">
+          <button class="btn btn-primary" id="bc-send"><svg class="ic ic-sm"><use href="#i-send"/></svg> Send broadcast</button>
+        </div>
+      </div>
+      <div class="card">
         <h3>Scheduled messages</h3>
         <div class="input-row">
           <input id="sched-chat" placeholder="chat_id" style="max-width:140px">

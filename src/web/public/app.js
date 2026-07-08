@@ -812,7 +812,42 @@ async function loadTools() {
 
   // Automation fields
   for (const el of $$('#tab-tools [data-setting]')) el.value = settings[el.dataset.setting] ?? '';
+
+  // Auto-responder rules
+  const ars = await api('/autoresponders');
+  $('#ar-table tbody').innerHTML = ars.length ? ars.map(a => `
+    <tr>
+      <td><b>${esc(a.trigger)}</b></td>
+      <td><span class="badge badge-gray">${esc(a.match_type)}</span></td>
+      <td>${esc(a.reply)}</td>
+      <td>${a.uses}</td>
+      <td><label class="switch"><input type="checkbox" data-ar-toggle="${a.id}" ${a.enabled ? 'checked' : ''}><span class="slider"></span></label></td>
+      <td><button class="btn btn-sm btn-danger" data-ar-del="${a.id}"><svg class="ic ic-sm"><use href="#i-trash"/></svg></button></td>
+    </tr>`).join('') : '<tr><td colspan="6" class="hint">No auto-responder rules.</td></tr>';
+  $$('[data-ar-toggle]').forEach(el => el.addEventListener('change', async () => {
+    await api(`/autoresponders/${el.dataset.arToggle}/toggle`, { method: 'PUT', body: { enabled: el.checked ? 1 : 0 } });
+  }));
+  $$('[data-ar-del]').forEach(el => el.addEventListener('click', async () => {
+    await api('/autoresponders/' + el.dataset.arDel, { method: 'DELETE' }); loadTools();
+  }));
 }
+$('#ar-add')?.addEventListener('click', async () => {
+  try {
+    await api('/autoresponders', { method: 'POST', body: { trigger: $('#ar-trigger').value, match_type: $('#ar-match').value, reply: $('#ar-reply').value } });
+    $('#ar-trigger').value = ''; $('#ar-reply').value = '';
+    toast('Rule added'); loadTools();
+  } catch (e) { toast(e.message, false); }
+});
+$('#bc-send')?.addEventListener('click', async () => {
+  const msg = $('#bc-message').value.trim();
+  if (!msg) return toast('Message required', false);
+  if (!confirm('Send this broadcast to matching contacts?')) return;
+  try {
+    const r = await api('/broadcast', { method: 'POST', body: { message: msg, filter: $('#bc-filter').value } });
+    toast(`Broadcast: ${r.sent} sent, ${r.failed} failed (${r.eligible} eligible)`);
+    $('#bc-message').value = '';
+  } catch (e) { toast(e.message, false); }
+});
 $('#send-now').addEventListener('click', async () => {
   try {
     await api('/send', {

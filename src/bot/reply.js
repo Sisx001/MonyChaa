@@ -270,6 +270,20 @@ async function generateReply(chatId, incomingText, { attachments = [], assistant
 
   if (contact && !contact.auto_reply) return null;
 
+  // Auto-responder rules short-circuit the LLM entirely (0 cost, instant).
+  const canned = require('../autoresponders').match(incomingText);
+  if (canned) {
+    conversations.addMessage(chatId, 'user', incomingText, 0, aid);
+    conversations.addMessage(chatId, 'assistant', canned, 0, aid);
+    logger.info(`Auto-responder matched for ${chatId}`);
+    return {
+      bursts: splitBursts(canned),
+      plan: delayPlan(incomingText, canned, { delayMultiplier: contact?.delay_multiplier ?? 1, momentum: conversationMomentum(chatId), priority: contact?.priority ?? 0 }),
+      result: { provider: 'autoresponder', model: '-', tokensIn: 0, tokensOut: 0, cost: 0 },
+      contact,
+    };
+  }
+
   conversations.addMessage(chatId, 'user', incomingText, 0, aid);
 
   // Gather context: semantic memories + tool output + injected blocks (all best-effort).

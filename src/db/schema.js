@@ -234,6 +234,26 @@ CREATE TABLE IF NOT EXISTS snippets (
   content TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 );
+
+-- Keyword-triggered instant replies that short-circuit the LLM (0 cost).
+CREATE TABLE IF NOT EXISTS autoresponders (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  trigger TEXT,
+  match_type TEXT DEFAULT 'contains',  -- contains | exact | starts | regex
+  reply TEXT,
+  enabled INTEGER DEFAULT 1,
+  uses INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS notes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT,
+  body TEXT,
+  pinned INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
 `);
 
 // Additive migrations for existing databases.

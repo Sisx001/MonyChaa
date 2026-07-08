@@ -271,6 +271,22 @@ test('conversation history add/get/clear', () => {
   assert.strictEqual(conv.getHistory(888).length, 0);
 });
 
+test('autoresponders: match types work and short-circuit correctly', () => {
+  const ar = require('../src/autoresponders');
+  ar.upsert({ trigger: 'hours', match_type: 'contains', reply: 'We are open 9-5.' });
+  ar.upsert({ trigger: 'ping', match_type: 'exact', reply: 'pong' });
+  ar.upsert({ trigger: 'hello', match_type: 'starts', reply: 'hi there' });
+  ar.upsert({ trigger: '^\\d{4}$', match_type: 'regex', reply: 'four digits' });
+  assert.strictEqual(ar.match('what are your HOURS?'), 'We are open 9-5.');
+  assert.strictEqual(ar.match('ping'), 'pong');
+  assert.strictEqual(ar.match('  PING  '), 'pong');
+  assert.strictEqual(ar.match('please ping me'), null); // exact must not substring-match
+  assert.strictEqual(ar.match('hello world'), 'hi there');
+  assert.strictEqual(ar.match('1234'), 'four digits');
+  assert.strictEqual(ar.match('nothing relevant'), null);
+  for (const r of ar.list()) ar.remove(r.id);
+});
+
 test('multi-tenancy: conversations are isolated by assistant_id', () => {
   const conv = require('../src/memory/conversations');
   conv.addMessage(500, 'user', 'primary brain', 0, 0);

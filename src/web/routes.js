@@ -75,6 +75,53 @@ router.delete('/prompts/versions/:id', wrap((req, res) => {
   res.json({ ok: true });
 }));
 
+// ---------- Auto-responder rules ----------
+const autoresponders = require('../autoresponders');
+router.get('/autoresponders', wrap((req, res) => res.json(autoresponders.list())));
+router.post('/autoresponders', wrap((req, res) => { autoresponders.upsert(req.body || {}); res.json({ ok: true }); }));
+router.put('/autoresponders/:id/toggle', wrap((req, res) => { autoresponders.setEnabled(req.params.id, Number(req.body.enabled)); res.json({ ok: true }); }));
+router.delete('/autoresponders/:id', wrap((req, res) => { autoresponders.remove(req.params.id); res.json({ ok: true }); }));
+
+// ---------- Notes ----------
+router.get('/notes', wrap((req, res) => {
+  res.json(db.prepare('SELECT * FROM notes ORDER BY pinned DESC, updated_at DESC').all());
+}));
+router.post('/notes', wrap((req, res) => {
+  const { id, title, body, pinned } = req.body || {};
+  if (id) db.prepare("UPDATE notes SET title = ?, body = ?, pinned = ?, updated_at = datetime('now') WHERE id = ?").run(title || '', body || '', pinned ? 1 : 0, id);
+  else db.prepare('INSERT INTO notes (title, body, pinned) VALUES (?, ?, ?)').run(title || 'Note', body || '', pinned ? 1 : 0);
+  res.json({ ok: true });
+}));
+router.delete('/notes/:id', wrap((req, res) => { db.prepare('DELETE FROM notes WHERE id = ?').run(req.params.id); res.json({ ok: true }); }));
+
+// ---------- Broadcast (message multiple contacts) ----------
+router.post('/broadcast', wrap(async (req, res) => {
+  const { getBot, getBusinessConnectionId, logMsg } = require('../bot/handlers');
+  const bot = getBot();
+  if (!bot) return res.status(400).json({ error: 'bot not running' });
+  const { message, filter } = req.body || {};
+  if (!message) return res.status(400).json({ error: 'message required' });
+  const connId = getBusinessConnectionId();
+  // Only contacts we've messaged within the 24h business window are reachable.
+  let contacts = db.prepare(`
+    SELECT DISTINCT c.chat_id FROM contacts c
+    WHERE c.assistant_id = 0 AND c.auto_reply = 1
+      AND EXISTS (SELECT 1 FROM messages_log m WHERE m.chat_id = c.chat_id AND m.direction = 'incoming' AND m.created_at > datetime('now','-24 hours'))
+      ${filter === 'vip' ? 'AND c.priority > 0' : ''}
+  `).all();
+  let sent = 0, failed = 0;
+  for (const c of contacts) {
+    try {
+      await bot.api.sendMessage(c.chat_id, message, { business_connection_id: connId });
+      logMsg(c.chat_id, 'outgoing', message, { model: 'broadcast' });
+      sent++;
+      await new Promise(r => setTimeout(r, 120)); // gentle pacing to avoid flood limits
+    } catch { failed++; }
+  }
+  auth.audit(req, 'broadcast', `sent ${sent}, failed ${failed}`, req.user);
+  res.json({ ok: true, sent, failed, eligible: contacts.length });
+}));
+
 // ---------- Prompt snippets (reusable prompt building blocks) ----------
 router.get('/snippets', wrap((req, res) => {
   res.json(db.prepare('SELECT * FROM snippets ORDER BY id DESC').all());
@@ -781,7 +828,7 @@ router.get('/backup', wrap((req, res) => {
   const settings = db.prepare('SELECT key, value FROM settings').all()
     .filter(s => withSecrets || !s.key.startsWith('apikey_'));
   dump.settings = settings;
-  for (const t of ['contacts', 'facts', 'memories', 'prompt_versions', 'scheduled_messages', 'skills', 'snippets']) {
+  for (const t of ['contacts', 'facts', 'memories', 'prompt_versions', 'scheduled_messages', 'skills', 'snippets', 'autoresponders', 'notes']) {
     dump[t] = db.prepare(`SELECT * FROM ${t}`).all();
   }
   dump.mcp_servers = db.prepare('SELECT * FROM mcp_servers').all()
@@ -839,6 +886,16 @@ router.post('/restore', wrap((req, res) => {
       const ins = db.prepare('INSERT INTO snippets (title, content) VALUES (?, ?)');
       for (const s of dump.snippets) if (s.content) ins.run(s.title || 'Snippet', s.content);
       counts.snippets = dump.snippets.length;
+    }
+    if (Array.isArray(dump.autoresponders)) {
+      const ins = db.prepare('INSERT INTO autoresponders (trigger, match_type, reply, enabled) VALUES (?, ?, ?, ?)');
+      for (const a of dump.autoresponders) if (a.trigger && a.reply) ins.run(a.trigger, a.match_type || 'contains', a.reply, a.enabled ?? 1);
+      counts.autoresponders = dump.autoresponders.length;
+    }
+    if (Array.isArray(dump.notes)) {
+      const ins = db.prepare('INSERT INTO notes (title, body, pinned) VALUES (?, ?, ?)');
+      for (const n of dump.notes) if (n.title || n.body) ins.run(n.title || '', n.body || '', n.pinned ?? 0);
+      counts.notes = dump.notes.length;
     }
   });
   tx();
