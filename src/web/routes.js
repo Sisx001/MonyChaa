@@ -407,10 +407,11 @@ router.get('/scheduled', wrap((req, res) => {
   res.json(db.prepare('SELECT * FROM scheduled_messages ORDER BY send_at DESC LIMIT 100').all());
 }));
 router.post('/scheduled', wrap((req, res) => {
-  const { chat_id, content, send_at } = req.body;
+  const { chat_id, content, send_at, recurrence } = req.body;
   if (!chat_id || !content || !send_at) return res.status(400).json({ error: 'chat_id, content, send_at required' });
-  db.prepare('INSERT INTO scheduled_messages (chat_id, content, send_at) VALUES (?, ?, ?)')
-    .run(chat_id, content, send_at.replace('T', ' ').slice(0, 19));
+  const rec = ['daily', 'weekly'].includes(recurrence) ? recurrence : 'none';
+  db.prepare('INSERT INTO scheduled_messages (chat_id, content, send_at, recurrence) VALUES (?, ?, ?, ?)')
+    .run(chat_id, content, send_at.replace('T', ' ').slice(0, 19), rec);
   res.json({ ok: true });
 }));
 router.delete('/scheduled/:id', wrap((req, res) => {

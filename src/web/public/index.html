@@ -448,13 +448,14 @@
       <div class="card">
         <h3>Scheduled messages</h3>
         <div class="input-row">
-          <input id="sched-chat" placeholder="chat_id" style="max-width:140px">
+          <input id="sched-chat" placeholder="chat_id" style="max-width:130px">
           <input id="sched-content" placeholder="Message…" style="flex:2">
           <input id="sched-at" type="datetime-local">
+          <select id="sched-recur" style="max-width:120px"><option value="none">Once</option><option value="daily">Daily</option><option value="weekly">Weekly</option></select>
           <button class="btn btn-primary" id="sched-add"><svg class="ic ic-sm"><use href="#i-clock"/></svg> Schedule</button>
         </div>
         <table class="table" id="sched-table">
-          <thead><tr><th>Chat</th><th>Message</th><th>Send at</th><th>Status</th><th></th></tr></thead>
+          <thead><tr><th>Chat</th><th>Message</th><th>Send at</th><th>Repeat</th><th>Status</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>

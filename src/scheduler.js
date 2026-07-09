@@ -30,10 +30,22 @@ function start() {
         const isOwner = m.chat_id === config.env.OWNER_USER_ID;
         if (!isOwner && !withinWindow) throw new Error('outside 24h business window');
         await bot.api.sendMessage(m.chat_id, m.content, isOwner ? {} : { business_connection_id: connId });
-        db.prepare("UPDATE scheduled_messages SET status = 'sent' WHERE id = ?").run(m.id);
+        // Recurring messages roll forward instead of being marked sent.
+        if (m.recurrence === 'daily' || m.recurrence === 'weekly') {
+          const step = m.recurrence === 'daily' ? '+1 day' : '+7 days';
+          db.prepare("UPDATE scheduled_messages SET send_at = datetime(send_at, ?) WHERE id = ?").run(step, m.id);
+        } else {
+          db.prepare("UPDATE scheduled_messages SET status = 'sent' WHERE id = ?").run(m.id);
+        }
         logMsg(m.chat_id, 'outgoing', m.content, { model: 'scheduled' });
       } catch (err) {
-        db.prepare("UPDATE scheduled_messages SET status = 'failed' WHERE id = ?").run(m.id);
+        // Recurring messages that fail (e.g. window closed) retry next occurrence.
+        if (m.recurrence === 'daily' || m.recurrence === 'weekly') {
+          const step = m.recurrence === 'daily' ? '+1 day' : '+7 days';
+          db.prepare("UPDATE scheduled_messages SET send_at = datetime(send_at, ?) WHERE id = ?").run(step, m.id);
+        } else {
+          db.prepare("UPDATE scheduled_messages SET status = 'failed' WHERE id = ?").run(m.id);
+        }
         logger.warn(`Scheduled message ${m.id} failed: ${err.message}`);
       }
     }

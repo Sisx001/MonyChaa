@@ -282,6 +282,21 @@ test('conversation history add/get/clear', () => {
   assert.strictEqual(conv.getHistory(888).length, 0);
 });
 
+test('scheduled messages: recurrence column + daily/weekly roll-forward SQL', () => {
+  const db = require('../src/db/schema');
+  const cols = db.prepare('PRAGMA table_info(scheduled_messages)').all().map(c => c.name);
+  assert.ok(cols.includes('recurrence'), 'recurrence column missing');
+  db.prepare("INSERT INTO scheduled_messages (chat_id, content, send_at, recurrence, status) VALUES (?,?,?,?,?)")
+    .run(555, 'daily ping', '2025-01-01 09:00:00', 'daily', 'pending');
+  const id = db.prepare('SELECT last_insert_rowid() id').get().id;
+  // Simulate the scheduler roll-forward.
+  db.prepare("UPDATE scheduled_messages SET send_at = datetime(send_at, '+1 day') WHERE id = ?").run(id);
+  const row = db.prepare('SELECT send_at, status FROM scheduled_messages WHERE id = ?').get(id);
+  assert.strictEqual(row.send_at, '2025-01-02 09:00:00');
+  assert.strictEqual(row.status, 'pending'); // recurring stays pending
+  db.prepare('DELETE FROM scheduled_messages WHERE id = ?').run(id);
+});
+
 test('autoresponders: match types work and short-circuit correctly', () => {
   const ar = require('../src/autoresponders');
   ar.upsert({ trigger: 'hours', match_type: 'contains', reply: 'We are open 9-5.' });

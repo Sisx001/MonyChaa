@@ -855,9 +855,10 @@ async function loadTools() {
   $('#sched-table tbody').innerHTML = sched.length ? sched.map(s => `
     <tr>
       <td>${s.chat_id}</td><td>${esc(s.content)}</td><td>${esc(s.send_at)}</td>
+      <td>${s.recurrence && s.recurrence !== 'none' ? `<span class="badge badge-blue">${esc(s.recurrence)}</span>` : '—'}</td>
       <td><span class="badge badge-${s.status === 'sent' ? 'green' : s.status === 'failed' ? 'red' : 'blue'}">${esc(s.status)}</span></td>
       <td>${s.status === 'pending' ? `<button class="btn btn-sm btn-danger" data-del-sched="${s.id}"><svg class="ic ic-sm"><use href="#i-x"/></svg></button>` : ''}</td>
-    </tr>`).join('') : '<tr><td colspan="5" class="hint">No scheduled messages.</td></tr>';
+    </tr>`).join('') : '<tr><td colspan="6" class="hint">No scheduled messages.</td></tr>';
   $$('[data-del-sched]').forEach(b => b.addEventListener('click', async () => {
     await api('/scheduled/' + b.dataset.delSched, { method: 'DELETE' }); loadTools();
   }));
@@ -912,7 +913,7 @@ $('#send-now').addEventListener('click', async () => {
 });
 $('#sched-add').addEventListener('click', async () => {
   try {
-    await api('/scheduled', { method: 'POST', body: { chat_id: Number($('#sched-chat').value), content: $('#sched-content').value, send_at: $('#sched-at').value } });
+    await api('/scheduled', { method: 'POST', body: { chat_id: Number($('#sched-chat').value), content: $('#sched-content').value, send_at: $('#sched-at').value, recurrence: $('#sched-recur').value } });
     toast('Message scheduled'); $('#sched-content').value = ''; loadTools();
   } catch (err) { toast(err.message, false); }
 });

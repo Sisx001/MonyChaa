@@ -305,6 +305,11 @@ db.exec('CREATE INDEX IF NOT EXISTS idx_contacts_assistant ON contacts(assistant
   const cols = db.prepare('PRAGMA table_info(contacts)').all().map(c => c.name);
   if (!cols.includes('tags')) db.exec("ALTER TABLE contacts ADD COLUMN tags TEXT DEFAULT ''");
 }
+// Recurrence for scheduled messages (none | daily | weekly).
+{
+  const cols = db.prepare('PRAGMA table_info(scheduled_messages)').all().map(c => c.name);
+  if (!cols.includes('recurrence')) db.exec("ALTER TABLE scheduled_messages ADD COLUMN recurrence TEXT DEFAULT 'none'");
+}
 
 bindDb(db);
 
