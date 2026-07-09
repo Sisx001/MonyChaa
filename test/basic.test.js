@@ -122,6 +122,11 @@ test('utility tools: pure-computation tools produce correct output', async () =>
   assert.strictEqual(await TOOLS.binary_text.run({ text: 'Hi', mode: 'encode' }), '01001000 01101001');
   assert.strictEqual(await TOOLS.binary_text.run({ text: '01001000 01101001', mode: 'decode' }), 'Hi');
   assert.match(await TOOLS.text_stats.run({ text: 'one two three. four five.' }), /5 words, 2 sentences/);
+  // fifth batch
+  assert.strictEqual(await TOOLS.acronym.run({ text: 'as soon as possible' }), 'ASAP');
+  assert.match(await TOOLS.vowel_count.run({ text: 'hello' }), /2 vowels, 3 consonants/);
+  assert.strictEqual(await TOOLS.leetspeak.run({ text: 'elite' }), '3l173');
+  assert.match(await TOOLS.pace.run({ distanceKm: 10, minutes: 50 }), /5:00 per km/);
 });
 
 test('reply post-processing: strip markdown, links cap, phone redaction, signature', () => {

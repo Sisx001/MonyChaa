@@ -547,6 +547,66 @@ const TOOLS = {
       return map[k] || Object.entries(map).find(([key]) => k.includes(key) || key.includes(k))?.[1] || 'No emoji found for that.';
     },
   },
+
+  // ---- fifth utility batch ----
+  roll_multiple: {
+    description: 'Roll several different dice at once',
+    args: '{ "notations": "1d20, 2d6, 1d4" }',
+    enabled: () => true,
+    run: ({ notations }) => {
+      return String(notations).split(',').map(n => {
+        const m = /^(\d*)d(\d+)$/i.exec(n.trim());
+        if (!m) return `${n.trim()}: ?`;
+        const c = Math.min(Number(m[1] || 1), 50), s = Math.min(Number(m[2]), 1000);
+        const rolls = Array.from({ length: c }, () => 1 + crypto.randomInt(s));
+        return `${n.trim()}: ${rolls.reduce((a, b) => a + b, 0)}`;
+      }).join(', ');
+    },
+  },
+  eta: {
+    description: 'Estimated arrival time given distance and speed',
+    args: '{ "distanceKm": 120, "speedKmh": 90 }',
+    enabled: () => true,
+    run: ({ distanceKm, speedKmh }) => {
+      const h = Number(distanceKm) / Number(speedKmh);
+      const mins = Math.round(h * 60);
+      const arrive = new Date(Date.now() + mins * 60000);
+      return `${Math.floor(mins / 60)}h ${mins % 60}m — arriving ~${arrive.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    },
+  },
+  pace: {
+    description: 'Running/cycling pace from distance and time',
+    args: '{ "distanceKm": 10, "minutes": 50 }',
+    enabled: () => true,
+    run: ({ distanceKm, minutes }) => {
+      const perKm = Number(minutes) / Number(distanceKm);
+      const m = Math.floor(perKm), s = Math.round((perKm - m) * 60);
+      const kmh = (Number(distanceKm) / (Number(minutes) / 60)).toFixed(1);
+      return `${m}:${String(s).padStart(2, '0')} per km (${kmh} km/h)`;
+    },
+  },
+  acronym: {
+    description: 'Make an acronym from the first letters of words',
+    args: '{ "text": "as soon as possible" }',
+    enabled: () => true,
+    run: ({ text }) => String(text).trim().split(/\s+/).map(w => w[0]?.toUpperCase() || '').join(''),
+  },
+  vowel_count: {
+    description: 'Count vowels and consonants in text',
+    args: '{ "text": "hello world" }',
+    enabled: () => true,
+    run: ({ text }) => {
+      const letters = String(text).replace(/[^a-z]/gi, '');
+      const vowels = (letters.match(/[aeiou]/gi) || []).length;
+      return `${vowels} vowels, ${letters.length - vowels} consonants, ${letters.length} letters`;
+    },
+  },
+  leetspeak: {
+    description: 'Convert text to leetspeak',
+    args: '{ "text": "elite hacker" }',
+    enabled: () => true,
+    run: ({ text }) => String(text).replace(/[aeiostAEIOST]/g, c => ({ a: '4', e: '3', i: '1', o: '0', s: '5', t: '7', A: '4', E: '3', I: '1', O: '0', S: '5', T: '7' }[c])),
+  },
 };
 
 module.exports = TOOLS;

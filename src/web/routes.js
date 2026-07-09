@@ -281,6 +281,18 @@ router.delete('/contacts/:chatId', wrap((req, res) => {
   res.json({ ok: true });
 }));
 
+// Export contacts as CSV.
+router.get('/contacts.csv', wrap((req, res) => {
+  const aid = Number(req.query.assistant_id) || 0;
+  const rows = db.prepare('SELECT chat_id, name, username, relationship, tone, priority, auto_reply, tags, notes FROM contacts WHERE assistant_id = ? ORDER BY priority DESC, name').all(aid);
+  const escCsv = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const header = 'chat_id,name,username,relationship,tone,priority,auto_reply,tags,notes';
+  const body = rows.map(r => [r.chat_id, r.name, r.username, r.relationship, r.tone, r.priority, r.auto_reply, r.tags, r.notes].map(escCsv).join(',')).join('\n');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename=contacts.csv');
+  res.send(header + '\n' + body);
+}));
+
 // Import contacts from a Telegram export (result.json shape or simple array).
 router.post('/contacts/import', wrap((req, res) => {
   const body = req.body || {};
