@@ -99,16 +99,20 @@ router.post('/broadcast', wrap(async (req, res) => {
   const { getBot, getBusinessConnectionId, logMsg } = require('../bot/handlers');
   const bot = getBot();
   if (!bot) return res.status(400).json({ error: 'bot not running' });
-  const { message, filter } = req.body || {};
+  const { message, filter, tag } = req.body || {};
   if (!message) return res.status(400).json({ error: 'message required' });
   const connId = getBusinessConnectionId();
   // Only contacts we've messaged within the 24h business window are reachable.
   let contacts = db.prepare(`
-    SELECT DISTINCT c.chat_id FROM contacts c
+    SELECT DISTINCT c.chat_id, c.tags FROM contacts c
     WHERE c.assistant_id = 0 AND c.auto_reply = 1
       AND EXISTS (SELECT 1 FROM messages_log m WHERE m.chat_id = c.chat_id AND m.direction = 'incoming' AND m.created_at > datetime('now','-24 hours'))
       ${filter === 'vip' ? 'AND c.priority > 0' : ''}
   `).all();
+  if (tag) {
+    const t = tag.toLowerCase();
+    contacts = contacts.filter(c => String(c.tags || '').toLowerCase().split(',').map(s => s.trim()).includes(t));
+  }
   let sent = 0, failed = 0;
   for (const c of contacts) {
     try {
@@ -222,16 +226,33 @@ router.post('/providers/test', wrap(async (req, res) => {
 // ---------- Contacts ----------
 const CONTACT_FIELDS = ['username', 'name', 'relationship', 'tone', 'gender', 'rules', 'auto_reply',
   'delay_multiplier', 'max_length', 'blocked_topics', 'priority', 'learned_tone', 'custom_prompt', 'notes',
-  'voice_replies'];
+  'voice_replies', 'tags'];
 
 router.get('/contacts', wrap((req, res) => {
   const q = req.query.q;
+  const tag = req.query.tag;
   const aid = Number(req.query.assistant_id) || 0;
-  const rows = q
+  let rows = q
     ? db.prepare('SELECT * FROM contacts WHERE assistant_id = ? AND (name LIKE ? OR username LIKE ? OR chat_id LIKE ?) ORDER BY priority DESC, updated_at DESC')
         .all(aid, `%${q}%`, `%${q}%`, `%${q}%`)
     : db.prepare('SELECT * FROM contacts WHERE assistant_id = ? ORDER BY priority DESC, updated_at DESC').all(aid);
+  if (tag) {
+    const t = tag.toLowerCase();
+    rows = rows.filter(c => String(c.tags || '').toLowerCase().split(',').map(s => s.trim()).includes(t));
+  }
   res.json(rows);
+}));
+
+// Distinct tags across contacts, with counts.
+router.get('/contacts/tags', wrap((req, res) => {
+  const aid = Number(req.query.assistant_id) || 0;
+  const counts = {};
+  for (const row of db.prepare('SELECT tags FROM contacts WHERE assistant_id = ?').all(aid)) {
+    for (const t of String(row.tags || '').split(',').map(s => s.trim()).filter(Boolean)) {
+      counts[t] = (counts[t] || 0) + 1;
+    }
+  }
+  res.json(Object.entries(counts).map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count));
 }));
 
 router.post('/contacts', wrap((req, res) => {

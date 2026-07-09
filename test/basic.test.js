@@ -336,6 +336,19 @@ test('model catalog: static fallback returns known models', async () => {
   assert.ok(models.every(m => m.id));
 });
 
+test('contacts: tags column stores and the DB filters by tag', () => {
+  const db = require('../src/db/schema');
+  const cols = db.prepare('PRAGMA table_info(contacts)').all().map(c => c.name);
+  assert.ok(cols.includes('tags'), 'tags column missing');
+  db.prepare("INSERT OR REPLACE INTO contacts (chat_id, assistant_id, name, tags) VALUES (?,?,?,?)").run(7001, 0, 'A', 'vip, client');
+  db.prepare("INSERT OR REPLACE INTO contacts (chat_id, assistant_id, name, tags) VALUES (?,?,?,?)").run(7002, 0, 'B', 'newsletter');
+  const all = db.prepare('SELECT chat_id, tags FROM contacts WHERE assistant_id = 0 AND chat_id IN (7001,7002)').all();
+  const vip = all.filter(c => String(c.tags).toLowerCase().split(',').map(s => s.trim()).includes('vip'));
+  assert.strictEqual(vip.length, 1);
+  assert.strictEqual(vip[0].chat_id, 7001);
+  db.prepare('DELETE FROM contacts WHERE chat_id IN (7001,7002)').run();
+});
+
 test('contacts: composite (chat_id, assistant_id) key allows same chat under two assistants', () => {
   const { upsertContact, getContact } = require('../src/bot/reply');
   upsertContact(4242, { name: 'Primary View' }, 0);

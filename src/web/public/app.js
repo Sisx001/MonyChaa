@@ -693,16 +693,30 @@ async function refreshContactAssistants() {
     sel.value = cur || '0';
   } catch { /* assistants optional */ }
 }
+let contactTagFilter = '';
 async function loadContacts() {
   await refreshContactAssistants();
   contactAssistant = Number($('#contact-assistant').value) || 0;
   const q = $('#contact-search').value;
   const params = new URLSearchParams({ assistant_id: contactAssistant });
   if (q) params.set('q', q);
-  const rows = await api('/contacts?' + params);
+  if (contactTagFilter) params.set('tag', contactTagFilter);
+  const [rows, tags] = await Promise.all([
+    api('/contacts?' + params),
+    api('/contacts/tags?assistant_id=' + contactAssistant).catch(() => []),
+  ]);
+
+  // Tag filter chips
+  $('#tag-filters').innerHTML = tags.length
+    ? `<button class="btn btn-sm ${contactTagFilter ? '' : 'btn-primary'}" data-tagf="">All</button>` +
+      tags.map(t => `<button class="btn btn-sm ${contactTagFilter === t.tag ? 'btn-primary' : ''}" data-tagf="${esc(t.tag)}">${esc(t.tag)} (${t.count})</button>`).join('')
+    : '';
+  $$('[data-tagf]').forEach(b => b.addEventListener('click', () => { contactTagFilter = b.dataset.tagf; loadContacts(); }));
+
   $('#contacts-table tbody').innerHTML = rows.length ? rows.map(c => `
     <tr data-edit="${c.chat_id}" style="cursor:pointer">
-      <td>${esc(c.name || '—')} ${c.priority ? '<svg class="ic ic-sm ic-gold"><use href="#i-star"/></svg>' : ''}</td>
+      <td>${esc(c.name || '—')} ${c.priority ? '<svg class="ic ic-sm ic-gold"><use href="#i-star"/></svg>' : ''}
+        ${(c.tags || '').split(',').map(t => t.trim()).filter(Boolean).map(t => `<span class="badge badge-blue">${esc(t)}</span>`).join(' ')}</td>
       <td>${c.username ? '@' + esc(c.username) : '—'}</td>
       <td>${c.chat_id}</td>
       <td>${esc(c.relationship || '—')}</td>
@@ -737,6 +751,7 @@ function openContact(c) {
   $('#c-rules').value = joinLines(c?.rules);
   $('#c-blocked_topics').value = joinLines(c?.blocked_topics);
   $('#c-notes').value = c?.notes || '';
+  $('#c-tags').value = c?.tags || '';
   $('#c-custom_prompt').value = c?.custom_prompt || '';
   $('#c-transcript').value = '';
   $('#c-learned').textContent = c?.learned_tone || '';
@@ -759,6 +774,7 @@ $('#contact-save').addEventListener('click', async () => {
     max_length: $('#c-max_length').value ? Number($('#c-max_length').value) : null,
     rules: parseLines($('#c-rules').value), blocked_topics: parseLines($('#c-blocked_topics').value),
     notes: $('#c-notes').value, custom_prompt: $('#c-custom_prompt').value || null,
+    tags: $('#c-tags').value.split(',').map(s => s.trim()).filter(Boolean).join(', '),
   };
   if (!body.chat_id) return toast('chat_id is required', false);
   try {
@@ -879,7 +895,7 @@ $('#bc-send')?.addEventListener('click', async () => {
   if (!msg) return toast('Message required', false);
   if (!confirm('Send this broadcast to matching contacts?')) return;
   try {
-    const r = await api('/broadcast', { method: 'POST', body: { message: msg, filter: $('#bc-filter').value } });
+    const r = await api('/broadcast', { method: 'POST', body: { message: msg, filter: $('#bc-filter').value, tag: $('#bc-tag').value.trim() || undefined } });
     toast(`Broadcast: ${r.sent} sent, ${r.failed} failed (${r.eligible} eligible)`);
     $('#bc-message').value = '';
   } catch (e) { toast(e.message, false); }

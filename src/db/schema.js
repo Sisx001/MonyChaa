@@ -299,6 +299,13 @@ if (contactPk.length === 1 && contactPk[0] === 'chat_id') {
 }
 db.exec('CREATE INDEX IF NOT EXISTS idx_contacts_assistant ON contacts(assistant_id)');
 
+// Contact tags (comma-separated) for segmentation — after the composite-key
+// rebuild so the column survives.
+{
+  const cols = db.prepare('PRAGMA table_info(contacts)').all().map(c => c.name);
+  if (!cols.includes('tags')) db.exec("ALTER TABLE contacts ADD COLUMN tags TEXT DEFAULT ''");
+}
+
 bindDb(db);
 
 module.exports = db;

@@ -387,6 +387,7 @@
             <button class="btn btn-primary" id="contact-add"><svg class="ic ic-sm"><use href="#i-plus"/></svg> Add contact</button>
           </div>
         </div>
+        <div id="tag-filters" class="preset-row" style="margin-bottom:10px"></div>
         <table class="table" id="contacts-table">
           <thead><tr><th>Name</th><th>@username</th><th>chat_id</th><th>Relationship</th><th>Tone</th><th>Auto-reply</th><th>Priority</th><th></th></tr></thead>
           <tbody></tbody>
@@ -437,7 +438,8 @@
         <h3><svg class="ic ic-sm"><use href="#i-send"/></svg> Broadcast</h3>
         <p class="hint">Message all contacts reachable within Telegram's 24-hour window. Paced to avoid flood limits.</p>
         <div class="input-row">
-          <select id="bc-filter" style="max-width:160px"><option value="all">All active contacts</option><option value="vip">VIP only</option></select>
+          <select id="bc-filter" style="max-width:150px"><option value="all">All active</option><option value="vip">VIP only</option></select>
+          <input id="bc-tag" placeholder="tag (optional)" style="max-width:140px">
           <input id="bc-message" placeholder="Broadcast message…" style="flex:2">
           <button class="btn btn-primary" id="bc-send"><svg class="ic ic-sm"><use href="#i-send"/></svg> Send broadcast</button>
         </div>
@@ -857,6 +859,7 @@
     <label class="full">Blocked topics (one per line)
       <textarea id="c-blocked_topics" rows="2" placeholder="politics"></textarea>
     </label>
+    <label class="full">Tags (comma-separated) <input id="c-tags" placeholder="client, vip, newsletter"></label>
     <label class="full">Notes <textarea id="c-notes" rows="2"></textarea></label>
     <label class="full">Custom system prompt override (empty = use global)
       <textarea id="c-custom_prompt" rows="3"></textarea>
