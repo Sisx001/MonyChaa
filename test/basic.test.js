@@ -135,6 +135,14 @@ test('utility tools: pure-computation tools produce correct output', async () =>
   assert.strictEqual(await TOOLS.rot13.run({ text: 'hello' }), 'uryyb');
   assert.strictEqual(await TOOLS.rot13.run({ text: 'uryyb' }), 'hello');
   assert.strictEqual(await TOOLS.extract_emails.run({ text: 'a@b.com and c@d.org' }), 'a@b.com\nc@d.org');
+  // seventh batch
+  assert.match(await TOOLS.palindrome.run({ text: 'A man a plan a canal Panama' }), /Yes/);
+  assert.match(await TOOLS.anagram_check.run({ a: 'listen', b: 'silent' }), /Yes/);
+  assert.strictEqual(await TOOLS.caesar.run({ text: 'abc', shift: 3 }), 'def');
+  assert.strictEqual(await TOOLS.ordinal.run({ number: 22 }), '22nd');
+  assert.strictEqual(await TOOLS.ordinal.run({ number: 11 }), '11th');
+  assert.strictEqual(await TOOLS.number_to_words.run({ number: 1234 }), 'one thousand two hundred thirty four');
+  assert.strictEqual(await TOOLS.initials.run({ name: 'Ada Lovelace' }), 'AL');
 });
 
 test('reply post-processing: strip markdown, links cap, phone redaction, signature', () => {

@@ -688,6 +688,94 @@ const TOOLS = {
     enabled: () => true,
     run: ({ text }) => String(text).replace(/[a-z]/gi, c => String.fromCharCode((c.charCodeAt(0) & 96) + (c.toLowerCase().charCodeAt(0) - 96 + 12) % 26 + 1)),
   },
+
+  // ---- seventh utility batch ----
+  palindrome: {
+    description: 'Check if text is a palindrome',
+    args: '{ "text": "A man a plan a canal Panama" }',
+    enabled: () => true,
+    run: ({ text }) => {
+      const s = String(text).toLowerCase().replace(/[^a-z0-9]/g, '');
+      return s === [...s].reverse().join('') ? 'Yes, it is a palindrome.' : 'No, not a palindrome.';
+    },
+  },
+  anagram_check: {
+    description: 'Check whether two words/phrases are anagrams',
+    args: '{ "a": "listen", "b": "silent" }',
+    enabled: () => true,
+    run: ({ a, b }) => {
+      const norm = s => [...String(s).toLowerCase().replace(/[^a-z0-9]/g, '')].sort().join('');
+      return norm(a) === norm(b) ? 'Yes, they are anagrams.' : 'No, not anagrams.';
+    },
+  },
+  caesar: {
+    description: 'Caesar cipher with a custom shift',
+    args: '{ "text": "hello", "shift": 3 }',
+    enabled: () => true,
+    run: ({ text, shift }) => {
+      const n = ((Number(shift) || 0) % 26 + 26) % 26;
+      return String(text).replace(/[a-z]/gi, c => {
+        const base = c <= 'Z' ? 65 : 97;
+        return String.fromCharCode((c.charCodeAt(0) - base + n) % 26 + base);
+      });
+    },
+  },
+  word_frequency: {
+    description: 'Most frequent words in text',
+    args: '{ "text": "..." }',
+    enabled: () => true,
+    run: ({ text }) => {
+      const words = String(text).toLowerCase().match(/[a-z']+/g) || [];
+      const map = {};
+      for (const w of words) if (w.length > 2) map[w] = (map[w] || 0) + 1;
+      const top = Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 8);
+      return top.length ? top.map(([w, n]) => `${w}: ${n}`).join(', ') : '(no words)';
+    },
+  },
+  ordinal: {
+    description: 'Ordinal suffix for a number (1st, 2nd, 3rd…)',
+    args: '{ "number": 22 }',
+    enabled: () => true,
+    run: ({ number }) => {
+      const n = Number(number); const s = ['th', 'st', 'nd', 'rd']; const v = n % 100;
+      return n + (s[(v - 20) % 10] || s[v] || s[0]);
+    },
+  },
+  number_to_words: {
+    description: 'Spell a whole number in English (0–999999)',
+    args: '{ "number": 1234 }',
+    enabled: () => true,
+    run: ({ number }) => {
+      let n = Math.floor(Math.abs(Number(number)));
+      if (n > 999999) throw new Error('0–999999 only');
+      const ones = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+      const tens = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+      const three = x => {
+        let r = '';
+        if (x >= 100) { r += ones[Math.floor(x / 100)] + ' hundred '; x %= 100; }
+        if (x >= 20) { r += tens[Math.floor(x / 10)] + ' '; x %= 10; }
+        if (x > 0) r += ones[x] + ' ';
+        return r.trim();
+      };
+      if (n === 0) return 'zero';
+      let out = '';
+      if (n >= 1000) { out += three(Math.floor(n / 1000)) + ' thousand '; n %= 1000; }
+      out += three(n);
+      return out.trim();
+    },
+  },
+  random_color: {
+    description: 'Generate a random hex color',
+    args: '{}',
+    enabled: () => true,
+    run: () => '#' + crypto.randomBytes(3).toString('hex'),
+  },
+  initials: {
+    description: 'Get initials from a name',
+    args: '{ "name": "Ada Lovelace" }',
+    enabled: () => true,
+    run: ({ name }) => String(name).trim().split(/\s+/).map(w => w[0]?.toUpperCase() || '').join(''),
+  },
 };
 
 module.exports = TOOLS;
