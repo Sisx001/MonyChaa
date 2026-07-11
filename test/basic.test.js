@@ -127,6 +127,14 @@ test('utility tools: pure-computation tools produce correct output', async () =>
   assert.match(await TOOLS.vowel_count.run({ text: 'hello' }), /2 vowels, 3 consonants/);
   assert.strictEqual(await TOOLS.leetspeak.run({ text: 'elite' }), '3l173');
   assert.match(await TOOLS.pace.run({ distanceKm: 10, minutes: 50 }), /5:00 per km/);
+  // sixth batch
+  assert.match(await TOOLS.sentiment.run({ text: 'I love this, amazing' }), /positive/);
+  assert.match(await TOOLS.sentiment.run({ text: 'this is terrible and broken' }), /negative/);
+  assert.strictEqual(await TOOLS.title_case.run({ text: 'the lord of the rings' }), 'The Lord of the Rings');
+  assert.strictEqual(await TOOLS.remove_duplicates.run({ text: 'a\nb\na\nc' }), 'a\nb\nc');
+  assert.strictEqual(await TOOLS.rot13.run({ text: 'hello' }), 'uryyb');
+  assert.strictEqual(await TOOLS.rot13.run({ text: 'uryyb' }), 'hello');
+  assert.strictEqual(await TOOLS.extract_emails.run({ text: 'a@b.com and c@d.org' }), 'a@b.com\nc@d.org');
 });
 
 test('reply post-processing: strip markdown, links cap, phone redaction, signature', () => {

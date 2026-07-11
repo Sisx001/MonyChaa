@@ -607,6 +607,87 @@ const TOOLS = {
     enabled: () => true,
     run: ({ text }) => String(text).replace(/[aeiostAEIOST]/g, c => ({ a: '4', e: '3', i: '1', o: '0', s: '5', t: '7', A: '4', E: '3', I: '1', O: '0', S: '5', T: '7' }[c])),
   },
+
+  // ---- sixth utility batch ----
+  sentiment: {
+    description: 'Quick heuristic sentiment of text (positive/negative/neutral)',
+    args: '{ "text": "I love this, it is amazing" }',
+    enabled: () => true,
+    run: ({ text }) => {
+      const pos = ['love', 'great', 'amazing', 'awesome', 'good', 'happy', 'excellent', 'thanks', 'perfect', 'wonderful', 'nice', 'best', 'glad', '👍', '❤️', '😊', '🎉'];
+      const neg = ['hate', 'bad', 'terrible', 'awful', 'angry', 'sad', 'worst', 'annoyed', 'broken', 'problem', 'issue', 'wrong', 'disappointed', '👎', '😡', '😢'];
+      const t = String(text).toLowerCase();
+      let score = 0;
+      for (const w of pos) if (t.includes(w)) score++;
+      for (const w of neg) if (t.includes(w)) score--;
+      const label = score > 0 ? 'positive' : score < 0 ? 'negative' : 'neutral';
+      return `${label} (score ${score > 0 ? '+' : ''}${score})`;
+    },
+  },
+  readability: {
+    description: 'Approximate reading grade level of text',
+    args: '{ "text": "..." }',
+    enabled: () => true,
+    run: ({ text }) => {
+      const s = String(text).trim();
+      const words = s.split(/\s+/).filter(Boolean);
+      const sentences = (s.match(/[.!?]+/g) || []).length || 1;
+      const syllables = words.reduce((n, w) => n + Math.max(1, (w.toLowerCase().match(/[aeiouy]+/g) || []).length), 0);
+      if (!words.length) return 'no text';
+      const grade = 0.39 * (words.length / sentences) + 11.8 * (syllables / words.length) - 15.59;
+      return `~grade ${Math.max(1, Math.round(grade))} (${words.length} words, ${sentences} sentences)`;
+    },
+  },
+  title_case: {
+    description: 'Smart title case (keeps small words lowercase)',
+    args: '{ "text": "the lord of the rings" }',
+    enabled: () => true,
+    run: ({ text }) => {
+      const small = new Set(['a', 'an', 'the', 'and', 'but', 'or', 'for', 'nor', 'of', 'on', 'in', 'to', 'at', 'by', 'as', 'is']);
+      const words = String(text).toLowerCase().split(/\s+/);
+      return words.map((w, i) => (i > 0 && i < words.length - 1 && small.has(w)) ? w : w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    },
+  },
+  remove_duplicates: {
+    description: 'Remove duplicate lines or list items',
+    args: '{ "text": "a\\nb\\na\\nc" }',
+    enabled: () => true,
+    run: ({ text }) => [...new Set(String(text).split('\n').map(l => l.trim()).filter(Boolean))].join('\n'),
+  },
+  sort_lines: {
+    description: 'Sort lines alphabetically (or numerically)',
+    args: '{ "text": "banana\\napple\\ncherry", "numeric": false }',
+    enabled: () => true,
+    run: ({ text, numeric }) => {
+      const lines = String(text).split('\n').map(l => l.trim()).filter(Boolean);
+      lines.sort(numeric ? (a, b) => parseFloat(a) - parseFloat(b) : (a, b) => a.localeCompare(b));
+      return lines.join('\n');
+    },
+  },
+  extract_emails: {
+    description: 'Extract email addresses from text',
+    args: '{ "text": "contact a@b.com or c@d.org" }',
+    enabled: () => true,
+    run: ({ text }) => {
+      const m = String(text).match(/[\w.+-]+@[\w-]+\.[\w.-]+/g) || [];
+      return m.length ? [...new Set(m)].join('\n') : 'No emails found.';
+    },
+  },
+  extract_urls: {
+    description: 'Extract URLs from text',
+    args: '{ "text": "see https://a.com and http://b.org" }',
+    enabled: () => true,
+    run: ({ text }) => {
+      const m = String(text).match(/https?:\/\/[^\s<>"]+/g) || [];
+      return m.length ? [...new Set(m)].join('\n') : 'No URLs found.';
+    },
+  },
+  rot13: {
+    description: 'ROT13 cipher (encode = decode)',
+    args: '{ "text": "hello" }',
+    enabled: () => true,
+    run: ({ text }) => String(text).replace(/[a-z]/gi, c => String.fromCharCode((c.charCodeAt(0) & 96) + (c.toLowerCase().charCodeAt(0) - 96 + 12) % 26 + 1)),
+  },
 };
 
 module.exports = TOOLS;
