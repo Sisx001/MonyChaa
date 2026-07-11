@@ -143,6 +143,13 @@ test('utility tools: pure-computation tools produce correct output', async () =>
   assert.strictEqual(await TOOLS.ordinal.run({ number: 11 }), '11th');
   assert.strictEqual(await TOOLS.number_to_words.run({ number: 1234 }), 'one thousand two hundred thirty four');
   assert.strictEqual(await TOOLS.initials.run({ name: 'Ada Lovelace' }), 'AL');
+  // eighth batch
+  assert.strictEqual(await TOOLS.scrabble_score.run({ word: 'quiz' }), 'quiz: 22 points');
+  assert.strictEqual(await TOOLS.aspect_ratio.run({ width: 1920, height: 1080 }), '16:9');
+  assert.strictEqual(await TOOLS.zodiac.run({ month: 7, day: 22 }), 'Cancer');
+  assert.strictEqual(await TOOLS.zodiac.run({ month: 7, day: 23 }), 'Leo');
+  assert.strictEqual(await TOOLS.strip_html.run({ html: '<b>hi</b> there' }), 'hi there');
+  assert.match(await TOOLS.count_words_unique.run({ text: 'the cat the dog' }), /4 total, 3 unique/);
 });
 
 test('reply post-processing: strip markdown, links cap, phone redaction, signature', () => {

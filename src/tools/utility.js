@@ -776,6 +776,104 @@ const TOOLS = {
     enabled: () => true,
     run: ({ name }) => String(name).trim().split(/\s+/).map(w => w[0]?.toUpperCase() || '').join(''),
   },
+
+  // ---- eighth utility batch (crosses 100 tools) ----
+  hex_to_bin: {
+    description: 'Convert hex to binary and back',
+    args: '{ "value": "ff", "to": "bin" }',
+    enabled: () => true,
+    run: ({ value, to }) => to === 'hex'
+      ? parseInt(String(value), 2).toString(16)
+      : parseInt(String(value), 16).toString(2),
+  },
+  aspect_ratio: {
+    description: 'Simplify a width:height ratio',
+    args: '{ "width": 1920, "height": 1080 }',
+    enabled: () => true,
+    run: ({ width, height }) => {
+      const g = (a, b) => (b ? g(b, a % b) : a);
+      const d = g(Number(width), Number(height));
+      return `${width / d}:${height / d}`;
+    },
+  },
+  scrabble_score: {
+    description: 'Scrabble score for a word',
+    args: '{ "word": "quiz" }',
+    enabled: () => true,
+    run: ({ word }) => {
+      const vals = { a: 1, e: 1, i: 1, o: 1, u: 1, l: 1, n: 1, s: 1, t: 1, r: 1, d: 2, g: 2, b: 3, c: 3, m: 3, p: 3, f: 4, h: 4, v: 4, w: 4, y: 4, k: 5, j: 8, x: 8, q: 10, z: 10 };
+      const score = [...String(word).toLowerCase()].reduce((s, c) => s + (vals[c] || 0), 0);
+      return `${word}: ${score} points`;
+    },
+  },
+  count_down_days: {
+    description: 'Business days (Mon–Fri) between two dates',
+    args: '{ "from": "2025-01-01", "to": "2025-01-31" }',
+    enabled: () => true,
+    run: ({ from, to }) => {
+      const a = new Date(from), b = new Date(to);
+      if (isNaN(a) || isNaN(b)) throw new Error('use YYYY-MM-DD');
+      let days = 0;
+      for (let d = new Date(a); d <= b; d.setDate(d.getDate() + 1)) {
+        const dow = d.getUTCDay();
+        if (dow !== 0 && dow !== 6) days++;
+      }
+      return `${days} business days`;
+    },
+  },
+  temperature_feels: {
+    description: 'Wind-chill / heat perception hint from temp + wind',
+    args: '{ "tempC": 5, "windKmh": 20 }',
+    enabled: () => true,
+    run: ({ tempC, windKmh }) => {
+      const t = Number(tempC), v = Number(windKmh);
+      if (t <= 10 && v > 4.8) {
+        const wc = 13.12 + 0.6215 * t - 11.37 * Math.pow(v, 0.16) + 0.3965 * t * Math.pow(v, 0.16);
+        return `Feels like ${wc.toFixed(1)}°C (wind chill)`;
+      }
+      return `Feels about ${t}°C`;
+    },
+  },
+  roman_clock: {
+    description: 'Current time as words',
+    args: '{ "timezone": "UTC" }',
+    enabled: () => true,
+    run: ({ timezone }) => {
+      const now = new Date().toLocaleTimeString('en-US', { timeZone: timezone || 'UTC', hour: 'numeric', minute: '2-digit', hour12: true });
+      return `It is ${now} (${timezone || 'UTC'})`;
+    },
+  },
+  strip_html: {
+    description: 'Strip HTML tags from text',
+    args: '{ "html": "<b>hi</b>" }',
+    enabled: () => true,
+    run: ({ html }) => String(html).replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').trim(),
+  },
+  repeat_text: {
+    description: 'Repeat text N times',
+    args: '{ "text": "ha", "times": 3 }',
+    enabled: () => true,
+    run: ({ text, times }) => String(text).repeat(Math.min(Math.max(Number(times) || 1, 1), 1000)),
+  },
+  count_words_unique: {
+    description: 'Count total and unique words',
+    args: '{ "text": "the cat the dog" }',
+    enabled: () => true,
+    run: ({ text }) => {
+      const words = String(text).toLowerCase().match(/[a-z']+/g) || [];
+      return `${words.length} total, ${new Set(words).size} unique`;
+    },
+  },
+  zodiac: {
+    description: 'Western zodiac sign for a birthday',
+    args: '{ "month": 7, "day": 22 }',
+    enabled: () => true,
+    run: ({ month, day }) => {
+      const m = Number(month), d = Number(day);
+      const signs = [['Capricorn', 19], ['Aquarius', 18], ['Pisces', 20], ['Aries', 20], ['Taurus', 21], ['Gemini', 21], ['Cancer', 22], ['Leo', 22], ['Virgo', 22], ['Libra', 22], ['Scorpio', 21], ['Sagittarius', 21], ['Capricorn', 31]];
+      return d <= signs[m - 1][1] ? signs[m - 1][0] : signs[m][0];
+    },
+  },
 };
 
 module.exports = TOOLS;
