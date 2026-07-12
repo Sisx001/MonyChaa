@@ -161,6 +161,31 @@ router.post('/chat/test', wrap(async (req, res) => {
   res.json({ reply: result.text, provider: result.provider, model: result.model, latencyMs: result.latencyMs, cost: result.cost });
 }));
 
+// Behavior inspector: show which human-layer signals fire for a sample message
+// (mood, time-of-day, active directives) — no LLM call, so it's instant + free.
+router.post('/behavior/preview', wrap((req, res) => {
+  const message = String(req.body?.message || '');
+  const mood = require('../bot/mood').detect(message);
+  const tod = require('../bot/timeofday');
+  const tz = config.getSetting('timezone') || 'UTC';
+  const period = tod.periodFor(tod.hourIn(tz));
+  const s = k => config.getSetting(k);
+  const active = [];
+  if (s('humanize') === 'on') active.push('humanize');
+  if (s('human_filler_ban') === 'on') active.push('filler-ban');
+  if (s('human_imperfections') !== 'off') active.push('imperfections:' + s('human_imperfections'));
+  if (s('mood_adaptation') === 'on') active.push('mood');
+  if (s('time_awareness') === 'on') active.push('time-of-day');
+  res.json({
+    mood: mood.mood,
+    moodHint: s('mood_adaptation') === 'on' ? mood.hint : '',
+    period: period.period,
+    periodHint: s('time_awareness') === 'on' ? period.hint : '',
+    timezone: tz,
+    active,
+  });
+}));
+
 // Multi-turn playground chat (ChatGPT-style panel chat).
 router.post('/chat/playground', wrap(async (req, res) => {
   const { messages, provider, model, temperature, max_tokens, top_p, use_persona, system } = req.body;

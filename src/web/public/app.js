@@ -1159,6 +1159,23 @@ function fillChatModels() {
   const p = chatProviders.find(x => x.id === $('#chat-provider').value);
   $('#chat-model').innerHTML = p ? p.models.map(m => `<option>${esc(m)}</option>`).join('') : '<option value="">auto</option>';
 }
+async function runBehaviorInspector() {
+  const message = $('#bhv-input').value.trim();
+  if (!message) return;
+  const box = $('#bhv-result');
+  box.textContent = 'Inspecting…';
+  try {
+    const b = await api('/behavior/preview', { method: 'POST', body: { message } });
+    const chips = (b.active || []).map(a => `<span class="badge badge-blue">${esc(a)}</span>`).join(' ') || '<span class="hint">no human-layer signals enabled</span>';
+    box.innerHTML = `
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">${chips}</div>
+      <div><b>Mood:</b> <span class="badge badge-${b.mood === 'neutral' ? 'gray' : 'green'}">${esc(b.mood)}</span>${b.moodHint ? ` — ${esc(b.moodHint)}` : ''}</div>
+      <div style="margin-top:4px"><b>Local time:</b> <span class="badge badge-gray">${esc(b.period)}</span> <span class="hint">(${esc(b.timezone)})</span>${b.periodHint ? ` — ${esc(b.periodHint)}` : ''}</div>`;
+  } catch (e) { box.textContent = e.message; }
+}
+$('#bhv-run').addEventListener('click', runBehaviorInspector);
+$('#bhv-input').addEventListener('keydown', e => { if (e.key === 'Enter') runBehaviorInspector(); });
+
 $('#chat-provider').addEventListener('change', fillChatModels);
 $('#chat-temp').addEventListener('input', () => $('#chat-temp-out').textContent = $('#chat-temp').value);
 $('#chat-system-mode').addEventListener('change', () => {

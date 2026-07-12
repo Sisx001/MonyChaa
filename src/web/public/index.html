@@ -207,6 +207,17 @@
           <button class="btn btn-primary chat-send" id="chat-send" title="Send"><svg class="ic"><use href="#i-send"/></svg></button>
         </div>
       </div>
+      <div class="card">
+        <div class="row-between">
+          <h3><svg class="ic ic-sm"><use href="#i-chat"/></svg> Behavior inspector</h3>
+          <span class="hint">See which human-layer signals fire for a message — no model call.</span>
+        </div>
+        <div class="input-row">
+          <input id="bhv-input" placeholder="e.g. this is ridiculous, I've waited all day!!" style="flex:1">
+          <button class="btn" id="bhv-run"><svg class="ic ic-sm"><use href="#i-zap"/></svg> Inspect</button>
+        </div>
+        <div id="bhv-result" class="hint" style="margin-top:10px"></div>
+      </div>
     </section>
 
     <!-- ============ SYSTEM PROMPT ============ -->

@@ -98,6 +98,7 @@ Add keys two ways: `.env`, or **Settings → API keys** (stored in DB, override 
   - **Ban assistant filler** — strips tell-tale phrases ("I hope this helps", "as an AI", "let me know if you need anything else") at the prompt level.
   - **Mood adaptation** — reads the sender's apparent mood from their message (upset / sad / anxious / excited) and injects a matching tone hint so the reply meets them where they are — acknowledging frustration, being gentle when they're down, or matching their excitement.
   - **Time-of-day awareness** — adapts reply energy to the sender's local time (from your timezone): low-key late at night, a little fresh in the morning, relaxed in the evening.
+  - **Behavior inspector** (Chat tab) — type any sample message and see exactly which human-layer signals fire (detected mood, local time period, and the active directives) with no model call. Use it to tune the settings above before they go live.
 
 Owner commands (DM the bot): `/status`, `/away`, `/pause`, `/summary`, `/id`, `/help`.
 
