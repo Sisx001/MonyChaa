@@ -75,6 +75,20 @@ test('humanize: roughens like texting but preserves meaning and links', () => {
   assert.strictEqual(humanize('see http://example.com.', 'natural', () => 0), 'see http://example.com.');
 });
 
+test('mood: detects sentiment and returns a tone hint', () => {
+  const { detect } = require('../src/bot/mood');
+  assert.strictEqual(detect('this is ridiculous and unacceptable').mood, 'upset');
+  assert.strictEqual(detect("i'm feeling really down today :(").mood, 'sad');
+  assert.strictEqual(detect("i'm so nervous about tomorrow").mood, 'anxious');
+  assert.strictEqual(detect('this is amazing, i love it!').mood, 'excited');
+  const neutral = detect('what time is the meeting');
+  assert.strictEqual(neutral.mood, 'neutral');
+  assert.strictEqual(neutral.hint, '');
+  // Non-neutral moods always carry a usable hint; empty input is safe.
+  assert.ok(detect('i hate this').hint.length > 0);
+  assert.strictEqual(detect('').mood, 'neutral');
+});
+
 test('provider registry integrity', () => {
   const { PROVIDERS, modelCost, isConfigured } = require('../src/llm/providers');
   for (const [id, p] of Object.entries(PROVIDERS)) {

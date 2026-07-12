@@ -157,6 +157,7 @@ const SETTING_DEFAULTS = {
   humanize: 'on',               // prompt-level: instruct the model to text like a person
   human_imperfections: 'subtle', // code-level output roughening: off | subtle | natural
   human_filler_ban: 'on',       // forbid AI-tell phrases ("as an AI", "I hope this helps")
+  mood_adaptation: 'on',        // read the sender's mood and steer reply tone to match
 
   // ---- Content controls ----
   strip_markdown: 'on',         // remove markdown formatting from replies

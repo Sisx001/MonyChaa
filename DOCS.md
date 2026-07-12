@@ -96,6 +96,7 @@ Add keys two ways: `.env`, or **Settings → API keys** (stored in DB, override 
   - **Text like a human (prompt)** — appends directives telling the model to use contractions, vary sentence length, keep punctuation casual, and never mention being an AI.
   - **Output imperfections (code)** — `subtle`/`natural` roughening applied after generation: occasionally drops a trailing period or lowercases a short casual line, relaxes spaced ellipses. Never touches links, questions, or exclamations.
   - **Ban assistant filler** — strips tell-tale phrases ("I hope this helps", "as an AI", "let me know if you need anything else") at the prompt level.
+  - **Mood adaptation** — reads the sender's apparent mood from their message (upset / sad / anxious / excited) and injects a matching tone hint so the reply meets them where they are — acknowledging frustration, being gentle when they're down, or matching their excitement.
 
 Owner commands (DM the bot): `/status`, `/away`, `/pause`, `/summary`, `/id`, `/help`.
 

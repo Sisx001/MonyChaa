@@ -315,6 +315,11 @@ async function generateReply(chatId, incomingText, { attachments = [], assistant
     extraContext += (extraContext ? '\n\n' : '') + 'Relevant memories:\n' + memories.map(m => `- ${m.content}`).join('\n');
   }
   if (toolResult) extraContext += (extraContext ? '\n\n' : '') + toolResult.context;
+  // Mood adaptation: read the sender's apparent mood and steer the reply's tone.
+  if (S('mood_adaptation') === 'on') {
+    const { hint } = require('./mood').detect(incomingText);
+    if (hint) extraContext += (extraContext ? '\n\n' : '') + hint;
+  }
 
   const history = conversations.getHistory(chatId, undefined, aid);
   const messages = [{ role: 'system', content: buildSystemPrompt(contact, extraContext, promptOverride, S) }];
