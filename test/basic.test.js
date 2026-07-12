@@ -91,6 +91,18 @@ test('mood: detects sentiment and returns a tone hint', () => {
   assert.strictEqual(detect('').mood, 'neutral');
 });
 
+test('quickreplies: suggests intent-appropriate candidates, urgent leads fast', () => {
+  const { suggest } = require('../src/bot/quickreplies');
+  const complaint = suggest('this is broken and terrible');
+  assert.strictEqual(complaint.intent, 'complaint');
+  assert.ok(complaint.suggestions.length >= 1 && complaint.suggestions.length <= 3);
+  assert.match(complaint.suggestions[0], /sorry/i);
+  const urgent = suggest('emergency, need this now, please respond asap!!! can you help?');
+  assert.strictEqual(urgent.urgent, true);
+  assert.match(urgent.suggestions[0], /right now|on it/i);
+  assert.ok(suggest('').suggestions.length >= 1); // always safe
+});
+
 test('replylength: scales target to message size, never exceeds base', () => {
   const { suggest } = require('../src/bot/replylength');
   const base = 800;
