@@ -77,7 +77,7 @@ Add keys two ways: `.env`, or **Settings → API keys** (stored in DB, override 
 ## 6. Skills, tools, MCP
 
 - **Skills** — instruction packs injected into the prompt. Keyword triggers make them contextual; no triggers = always on.
-  - *Catalog*: 6 ready-made, one-click.
+  - *Catalog*: 26 ready-made, one-click.
   - *GitHub*: search repos, install — the README is distilled into a skill by the LLM.
   - *Self-learning*: the bot studies its own conversations and proposes new skills (arrive disabled for review; enable daily in Settings → Skills).
 - **Tools** — web search (Tavily/Brave/SerpAPI/Perplexity/SearXNG/DuckDuckGo), webpage reader, weather, crypto, currency, translation, image gen, QR, URL shortener, calendar, Gmail, GitHub, Notion, Spotify, YouTube, Twitter, news. Auto-invoked when a message needs live data.

@@ -395,6 +395,14 @@ test('skills: trigger matching, always-on, toggle, catalog install', () => {
   skills.installFromCatalog('Boundary Keeper');
   assert.ok(skills.list().some(s => s.name === 'Boundary Keeper' && s.source === 'catalog'));
 
+  // Catalog integrity: enough entries, unique names, every one well-formed.
+  assert.ok(skills.CATALOG.length >= 26);
+  const names = skills.CATALOG.map(c => c.name);
+  assert.strictEqual(new Set(names).size, names.length);
+  for (const c of skills.CATALOG) {
+    assert.ok(c.name && c.content && Array.isArray(c.triggers));
+  }
+
   for (const s of skills.list().filter(s => s.name.startsWith('T-') || s.name === 'Boundary Keeper')) skills.remove(s.id);
 });
 

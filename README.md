@@ -423,7 +423,7 @@ src/
 ├── config.js           # env + DB-backed settings (~100 options)
 ├── assistants.js       # multi-bot manager (isolated brains)
 ├── characters.js       # 40 preloaded personas
-├── skills.js           # skill catalog, GitHub install, self-learning
+├── skills.js           # 26-skill catalog, GitHub install, self-learning
 ├── autoresponders.js   # keyword → instant reply
 ├── analytics.js        # stats, cost aggregation, mood breakdown
 ├── system.js           # metrics, health diagnostics, auto-fix, restart
