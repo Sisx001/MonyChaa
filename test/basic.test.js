@@ -245,6 +245,17 @@ test('utility tools: pure-computation tools produce correct output', async () =>
   assert.strictEqual(await TOOLS.zodiac.run({ month: 7, day: 23 }), 'Leo');
   assert.strictEqual(await TOOLS.strip_html.run({ html: '<b>hi</b> there' }), 'hi there');
   assert.match(await TOOLS.count_words_unique.run({ text: 'the cat the dog' }), /4 total, 3 unique/);
+  // ninth batch — data, finance & text
+  assert.match(await TOOLS.stats_summary.run({ numbers: [4, 8, 15, 16, 23, 42] }), /mean=18\.00 median=15\.5/);
+  assert.match(await TOOLS.percentage_change.run({ from: 80, to: 100 }), /\+25\.00%/);
+  assert.match(await TOOLS.compound_interest.run({ principal: 1000, ratePct: 5, years: 10, perYear: 12 }), /1647\.01/);
+  assert.strictEqual(await TOOLS.duration_human.run({ seconds: 90061 }), '1d 1h 1m 1s');
+  assert.strictEqual(await TOOLS.data_size.run({ bytes: 1536000 }), '1.46 MB');
+  assert.strictEqual(await TOOLS.nato_spell.run({ text: 'cat' }), 'Charlie Alpha Tango');
+  assert.strictEqual(await TOOLS.pig_latin.run({ text: 'hello world' }), 'ellohay orldway');
+  assert.match(await TOOLS.luhn_check.run({ number: '4539578763621486' }), /Valid/);
+  assert.match(await TOOLS.luhn_check.run({ number: '1234567890123456' }), /Invalid/);
+  assert.match(await TOOLS.loan_payment.run({ principal: 200000, annualRatePct: 6, years: 30 }), /1199\.10/);
 });
 
 test('reply post-processing: strip markdown, links cap, phone redaction, signature', () => {

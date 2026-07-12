@@ -874,6 +874,133 @@ const TOOLS = {
       return d <= signs[m - 1][1] ? signs[m - 1][0] : signs[m][0];
     },
   },
+
+  // ---- Batch 9: data, finance & text utilities (all distinct from earlier batches) ----
+  stats_summary: {
+    description: 'Mean, median, min, max and standard deviation of a list of numbers',
+    args: '{ "numbers": [4, 8, 15, 16, 23, 42] }',
+    enabled: () => true,
+    run: ({ numbers }) => {
+      const xs = (Array.isArray(numbers) ? numbers : String(numbers).split(/[,\s]+/))
+        .map(Number).filter(Number.isFinite);
+      if (!xs.length) return 'Provide at least one number';
+      const n = xs.length, sum = xs.reduce((a, b) => a + b, 0), mean = sum / n;
+      const sorted = [...xs].sort((a, b) => a - b);
+      const median = n % 2 ? sorted[(n - 1) / 2] : (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
+      const sd = Math.sqrt(xs.reduce((a, b) => a + (b - mean) ** 2, 0) / n);
+      return `n=${n} mean=${mean.toFixed(2)} median=${median} min=${sorted[0]} max=${sorted[n - 1]} sd=${sd.toFixed(2)}`;
+    },
+  },
+  percentage_change: {
+    description: 'Percentage change from one value to another',
+    args: '{ "from": 80, "to": 100 }',
+    enabled: () => true,
+    run: ({ from, to }) => {
+      const a = Number(from), b = Number(to);
+      if (!a) return 'The "from" value must be non-zero';
+      const pct = ((b - a) / Math.abs(a)) * 100;
+      return `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}% (${a} → ${b})`;
+    },
+  },
+  compound_interest: {
+    description: 'Future value with compound interest',
+    args: '{ "principal": 1000, "ratePct": 5, "years": 10, "perYear": 12 }',
+    enabled: () => true,
+    run: ({ principal, ratePct, years, perYear }) => {
+      const p = Number(principal), r = Number(ratePct) / 100, t = Number(years), k = Number(perYear) || 1;
+      if (![p, r, t].every(Number.isFinite)) return 'principal, ratePct and years are required';
+      const fv = p * Math.pow(1 + r / k, k * t);
+      return `Future value: ${fv.toFixed(2)} (interest earned ${(fv - p).toFixed(2)})`;
+    },
+  },
+  duration_human: {
+    description: 'Format a number of seconds as a human duration',
+    args: '{ "seconds": 90061 }',
+    enabled: () => true,
+    run: ({ seconds }) => {
+      let s = Math.trunc(Number(seconds));
+      if (!Number.isFinite(s) || s < 0) return 'seconds must be a non-negative number';
+      const d = Math.floor(s / 86400); s %= 86400;
+      const h = Math.floor(s / 3600); s %= 3600;
+      const m = Math.floor(s / 60); s %= 60;
+      const parts = [d && `${d}d`, h && `${h}h`, m && `${m}m`, s && `${s}s`].filter(Boolean);
+      return parts.length ? parts.join(' ') : '0s';
+    },
+  },
+  data_size: {
+    description: 'Format a number of bytes as a human-readable size',
+    args: '{ "bytes": 1536000 }',
+    enabled: () => true,
+    run: ({ bytes }) => {
+      let n = Number(bytes);
+      if (!Number.isFinite(n) || n < 0) return 'bytes must be a non-negative number';
+      const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+      let i = 0;
+      while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+      return `${i === 0 ? n : n.toFixed(2)} ${units[i]}`;
+    },
+  },
+  nato_spell: {
+    description: 'Spell a word using the NATO phonetic alphabet',
+    args: '{ "text": "cat" }',
+    enabled: () => true,
+    run: ({ text }) => {
+      const N = { a: 'Alpha', b: 'Bravo', c: 'Charlie', d: 'Delta', e: 'Echo', f: 'Foxtrot', g: 'Golf', h: 'Hotel', i: 'India', j: 'Juliett', k: 'Kilo', l: 'Lima', m: 'Mike', n: 'November', o: 'Oscar', p: 'Papa', q: 'Quebec', r: 'Romeo', s: 'Sierra', t: 'Tango', u: 'Uniform', v: 'Victor', w: 'Whiskey', x: 'Xray', y: 'Yankee', z: 'Zulu' };
+      return String(text).toLowerCase().split('').map(ch => N[ch] || (/[0-9]/.test(ch) ? ch : (ch === ' ' ? '/' : null))).filter(Boolean).join(' ');
+    },
+  },
+  pig_latin: {
+    description: 'Translate text into Pig Latin',
+    args: '{ "text": "hello world" }',
+    enabled: () => true,
+    run: ({ text }) => String(text).split(/\s+/).filter(Boolean).map(w => {
+      const m = w.match(/^([^aeiouAEIOU]+)(.*)$/);
+      const out = m && m[2] ? m[2] + m[1] + 'ay' : w + 'way';
+      return /^[A-Z]/.test(w) ? out[0].toUpperCase() + out.slice(1).toLowerCase() : out.toLowerCase();
+    }).join(' '),
+  },
+  luhn_check: {
+    description: 'Validate a number (e.g. credit card) with the Luhn checksum',
+    args: '{ "number": "4539578763621486" }',
+    enabled: () => true,
+    run: ({ number }) => {
+      const digits = String(number).replace(/[\s-]/g, '');
+      if (!/^\d+$/.test(digits)) return 'Provide digits only';
+      let sum = 0, alt = false;
+      for (let i = digits.length - 1; i >= 0; i--) {
+        let d = Number(digits[i]);
+        if (alt) { d *= 2; if (d > 9) d -= 9; }
+        sum += d; alt = !alt;
+      }
+      return sum % 10 === 0 ? `Valid (Luhn checksum passes)` : `Invalid (Luhn checksum fails)`;
+    },
+  },
+  loan_payment: {
+    description: 'Monthly payment for a fixed-rate loan or mortgage',
+    args: '{ "principal": 200000, "annualRatePct": 6, "years": 30 }',
+    enabled: () => true,
+    run: ({ principal, annualRatePct, years }) => {
+      const p = Number(principal), r = Number(annualRatePct) / 100 / 12, n = Number(years) * 12;
+      if (![p, r, n].every(Number.isFinite) || n <= 0) return 'principal, annualRatePct and years are required';
+      const pay = r === 0 ? p / n : (p * r) / (1 - Math.pow(1 + r, -n));
+      return `Monthly payment ${pay.toFixed(2)} (total ${(pay * n).toFixed(2)} over ${n} payments)`;
+    },
+  },
+  time_until: {
+    description: 'Time remaining until a future date/time (ISO)',
+    args: '{ "when": "2030-01-01T00:00:00Z" }',
+    enabled: () => true,
+    run: ({ when }) => {
+      const t = Date.parse(when);
+      if (!Number.isFinite(t)) return 'Provide a valid ISO date/time';
+      let s = Math.round((t - Date.now()) / 1000);
+      const past = s < 0; s = Math.abs(s);
+      const d = Math.floor(s / 86400); s %= 86400;
+      const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60);
+      const parts = [d && `${d}d`, h && `${h}h`, m && `${m}m`].filter(Boolean).join(' ') || '0m';
+      return past ? `${parts} ago` : `in ${parts}`;
+    },
+  },
 };
 
 module.exports = TOOLS;

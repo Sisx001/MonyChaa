@@ -60,7 +60,7 @@ Everything — the prompt, the models, the memory, the tools, the behavior — i
 - **Memory** — per-chat history, semantic vector recall, auto-extracted facts, a global FAQ knowledge base, and auto-summarization of long threads.
 - **Human-behavior engine** — texts like a person (contractions, casual punctuation), never reveals it's an AI, bans assistant filler, adds subtle output imperfections, adapts to the sender's **mood** (6 states) and **local time of day**.
 - **Skills** — installable instruction packs with keyword triggers: a starter catalog, **GitHub search + one-click install**, and **self-learning** from your own conversations.
-- **Tools** — 100 built-ins: web search, webpage reader, weather, crypto, currency, translation, image generation, QR, calculators, converters and more — auto-invoked when a message needs them.
+- **Tools** — 110 built-ins: web search, webpage reader, weather, crypto, currency, translation, image generation, QR, calculators, converters and more — auto-invoked when a message needs them.
 - **MCP** — plug in any HTTP MCP server; its tools are discovered and become `mcp:server:tool`.
 
 **Control & operations**
@@ -136,7 +136,7 @@ Incoming DMs to your account are now answered as you. To pause instantly, DM `/p
 | **Memory** | Global facts KB, vector memories, notes, export/import |
 | **Library** | Skills (install/create/learn), starter catalog, **GitHub one-click install**, **MCP servers** |
 | **Contacts** | Per-contact tone/rules/VIP/voice, tags, relationship learning, @username→id resolver, CSV import/export |
-| **Tools** | 100 built-in + MCP tools with test buttons, send-now composer, **auto-responders**, **broadcast**, scheduled/recurring messages, automation |
+| **Tools** | 110 built-in + MCP tools with test buttons, send-now composer, **auto-responders**, **broadcast**, scheduled/recurring messages, automation |
 | **Logs** | Messages / errors / events / token usage — searchable, CSV export |
 | **Assistants** | Create/start/stop multiple bots, each with its own token, persona and isolated brain |
 | **Monitoring** | Real-time CPU/memory/disk, health diagnostics, one-click auto-fix, **sender mood mix**, restart |
@@ -261,7 +261,7 @@ Add keys two ways: in `.env`, or **Settings → API keys** (stored in the DB, ov
   - *Catalog* — ready-made packs, one-click install.
   - *GitHub* — search repositories and install; the README is distilled into a skill by the LLM.
   - *Self-learning* — the bot studies its own conversations and proposes new skills (arrive disabled for your review; enable the nightly job in Settings → Skills).
-- **Tools** — 100 built-ins: web search (Tavily/Brave/SerpAPI/Perplexity/SearXNG/DuckDuckGo), webpage reader (SSRF-guarded), weather, crypto, currency, translation, image generation, QR, URL shortener, calculators, unit/number/base converters, hashing, text analysis, and integrations (Calendar, Gmail, GitHub, Notion, Spotify, YouTube, Twitter/X, news). Auto-invoked when a message needs live data.
+- **Tools** — 110 built-ins: web search (Tavily/Brave/SerpAPI/Perplexity/SearXNG/DuckDuckGo), webpage reader (SSRF-guarded), weather, crypto, currency, translation, image generation, QR, URL shortener, calculators, unit/number/base converters, hashing, text analysis, and integrations (Calendar, Gmail, GitHub, Notion, Spotify, YouTube, Twitter/X, news). Auto-invoked when a message needs live data.
 - **MCP servers** — Library → MCP. Paste any HTTP MCP endpoint (+ optional auth headers), click **Connect**; its tools are discovered and become `mcp:server:tool`, callable by the bot.
 
 ---
@@ -437,7 +437,7 @@ src/
 │   └── telegramSettings.js  # owner-only /set /persona /model …
 ├── llm/                # provider registry, gateway, fallback, live model catalog
 ├── memory/             # conversation history, vector memory, facts KB
-├── tools/              # 100 tools, SSRF guard, MCP client
+├── tools/              # 110 tools, SSRF guard, MCP client
 ├── web/
 │   ├── server.js       # Express, security headers, rate limiting
 │   ├── routes.js       # REST API (100+ endpoints)
