@@ -327,7 +327,8 @@ router.get('/contacts/:chatId/stats', wrap((req, res) => {
   const stats = analytics.contactStats(Number(req.params.chatId), aid);
   const mood = analytics.contactMoodProfile(Number(req.params.chatId), aid).dominant;
   const topics = analytics.contactTopics(Number(req.params.chatId), aid);
-  res.json({ ...stats, mood, topics });
+  const relationship = analytics.relationshipStrength(Number(req.params.chatId), aid);
+  res.json({ ...stats, mood, topics, relationship });
 }));
 
 // Distinct tags across contacts, with counts.

@@ -151,6 +151,31 @@ function contactTopics(chatId, assistantId = 0, top = 6, limit = 120) {
     .map(([word, count]) => ({ word, count }));
 }
 
+/** Relationship strength 0–100 from volume, recency and reciprocity. */
+function relationshipStrength(chatId, assistantId = 0) {
+  const s = contactStats(chatId, assistantId);
+  if (!s.total) return { score: 0, level: 'none', factors: { volume: 0, recency: 0, reciprocity: 0 } };
+
+  // Volume (0–40), log-scaled so a handful of messages already counts.
+  const volume = Math.min(40, Math.round((Math.log10(s.total + 1) / Math.log10(200)) * 40));
+
+  // Recency (0–35): decays over ~30 days since the last message.
+  let recency = 0;
+  if (s.lastSeen) {
+    const daysAgo = (Date.now() - Date.parse(s.lastSeen + 'Z')) / 86400000;
+    recency = Math.round(35 * Math.max(0, 1 - daysAgo / 30));
+  }
+
+  // Reciprocity (0–25): how balanced the back-and-forth is.
+  const bal = s.incoming && s.outgoing
+    ? Math.min(s.incoming, s.outgoing) / Math.max(s.incoming, s.outgoing) : 0;
+  const reciprocity = Math.round(bal * 25);
+
+  const score = Math.max(0, Math.min(100, volume + recency + reciprocity));
+  const level = score >= 66 ? 'strong' : score >= 33 ? 'warm' : 'cool';
+  return { score, level, factors: { volume, recency, reciprocity } };
+}
+
 /** A single contact's dominant mood over their recent incoming messages. */
 function contactMoodProfile(chatId, assistantId = 0, limit = 40) {
   const { detect } = require('./bot/mood');
@@ -187,4 +212,4 @@ function dailySummaryText() {
   ].join('\n');
 }
 
-module.exports = { stats, dailySummaryText, moodBreakdown, contactMoodProfile, contactStats, contactTopics };
+module.exports = { stats, dailySummaryText, moodBreakdown, contactMoodProfile, contactStats, contactTopics, relationshipStrength };

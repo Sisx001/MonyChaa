@@ -206,6 +206,18 @@ test('analytics.contactStats computes volumes, response rate and cadence', () =>
   db.prepare('DELETE FROM messages_log WHERE chat_id = 313131').run();
 });
 
+test('analytics.relationshipStrength rewards volume, recency and balance', () => {
+  const analytics = require('../src/analytics');
+  const db = require('../src/db/schema');
+  const ins = db.prepare("INSERT INTO messages_log (chat_id, assistant_id, direction, content) VALUES (?, 0, ?, 'x')");
+  for (let i = 0; i < 20; i++) { ins.run(515151, 'incoming'); ins.run(515151, 'outgoing'); }
+  const r = analytics.relationshipStrength(515151, 0);
+  assert.ok(r.score >= 66 && r.level === 'strong');
+  assert.ok(r.factors.volume > 0 && r.factors.recency > 0 && r.factors.reciprocity > 0);
+  assert.strictEqual(analytics.relationshipStrength(999998, 0).level, 'none');
+  db.prepare('DELETE FROM messages_log WHERE chat_id = 515151').run();
+});
+
 test('analytics.contactTopics surfaces recurring meaningful words', () => {
   const analytics = require('../src/analytics');
   const db = require('../src/db/schema');

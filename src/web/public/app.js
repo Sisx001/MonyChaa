@@ -770,11 +770,12 @@ async function loadContactStats(c) {
     if (!s.total) { box.style.display = 'none'; return; }
     const ago = t => t ? fmtTime(t) : '—';
     const mins = s.avgResponseMs ? (s.avgResponseMs / 1000).toFixed(1) + 's' : '—';
+    const rel = s.relationship || { score: 0, level: 'none' };
     const tiles = [
       ['Messages', s.total, `${s.incoming} in · ${s.outgoing} out`],
       ['Response rate', s.responseRate + '%', `avg ${mins}`],
       ['Cadence', s.msgsPerDay + '/day', `${s.activeDays} day span`],
-      ['Last seen', ago(s.lastSeen), s.mood ? `usually ${s.mood}` : `since ${ago(s.firstSeen)}`],
+      ['Relationship', rel.score + ' · ' + rel.level, `last seen ${ago(s.lastSeen)}`],
     ];
     box.innerHTML = tiles.map(([l, v, sub]) =>
       `<div class="stat"><div class="label">${esc(l)}</div><div class="value">${esc(String(v))}</div><div class="sub">${esc(sub)}</div></div>`).join('');

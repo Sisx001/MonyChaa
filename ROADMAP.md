@@ -25,7 +25,7 @@ Turn the contacts list into a lightweight CRM.
 
 - ✅ 2.1 **Interaction stats** — per-contact volumes, response rate, cadence, first/last seen; shown atop the contact editor.
 - ✅ 2.2 **Dominant topics** — recurring, stopword-filtered keywords from a contact's history; shown as chips in the editor.
-- ⬜ 2.3 **Relationship strength** — a 0–100 score from frequency, recency and reciprocity.
+- ✅ 2.3 **Relationship strength** — 0–100 (cool/warm/strong) from volume, recency and reciprocity; tile in the editor.
 - ⬜ 2.4 **Contact timeline** — a compact recent-activity timeline endpoint + panel view.
 - ⬜ 2.5 **Important dates** — remember birthdays/anniversaries per contact, surface upcoming ones.
 - ⬜ 2.6 **Duplicate detector** — find likely-duplicate contacts to merge.
