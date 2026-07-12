@@ -716,6 +716,7 @@ async function loadContacts() {
   $('#contacts-table tbody').innerHTML = rows.length ? rows.map(c => `
     <tr data-edit="${c.chat_id}" style="cursor:pointer">
       <td>${esc(c.name || '—')} ${c.priority ? '<svg class="ic ic-sm ic-gold"><use href="#i-star"/></svg>' : ''}
+        ${c.mood && MOOD_META[c.mood] ? `<span class="badge" style="background:${MOOD_META[c.mood].color}22;color:${MOOD_META[c.mood].color};border:1px solid ${MOOD_META[c.mood].color}55" title="Usually reaches out ${esc(MOOD_META[c.mood].label.toLowerCase())}">${esc(MOOD_META[c.mood].label)}</span>` : ''}
         ${(c.tags || '').split(',').map(t => t.trim()).filter(Boolean).map(t => `<span class="badge badge-blue">${esc(t)}</span>`).join(' ')}</td>
       <td>${c.username ? '@' + esc(c.username) : '—'}</td>
       <td>${c.chat_id}</td>

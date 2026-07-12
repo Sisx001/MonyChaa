@@ -299,6 +299,12 @@ router.get('/contacts', wrap((req, res) => {
     const t = tag.toLowerCase();
     rows = rows.filter(c => String(c.tags || '').toLowerCase().split(',').map(s => s.trim()).includes(t));
   }
+  // Annotate each contact with its learned emotional baseline (best-effort).
+  const { contactMoodProfile } = require('../analytics');
+  for (const c of rows) {
+    try { c.mood = contactMoodProfile(c.chat_id, c.assistant_id || 0).dominant; }
+    catch { c.mood = null; }
+  }
   res.json(rows);
 }));
 
