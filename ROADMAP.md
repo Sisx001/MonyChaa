@@ -11,7 +11,7 @@ Legend: ⬜ planned · 🔄 in progress · ✅ shipped
 ## Phase 1 — Reply Intelligence
 Make the bot understand *what kind* of message it's answering, and answer smarter.
 
-- ⬜ 1.1 **Language detection** — detect the incoming message's language; surface in inspector/logs.
+- ✅ 1.1 **Language detection** — detect the incoming message's language; surfaced in the Behavior inspector.
 - ⬜ 1.2 **Intent classification** — question / request / greeting / complaint / smalltalk / feedback.
 - ⬜ 1.3 **Urgency scoring** — 0–100 urgency from keywords, punctuation, time-sensitivity.
 - ⬜ 1.4 **Adaptive reply length** — auto-scale target length to the incoming message's size/complexity.

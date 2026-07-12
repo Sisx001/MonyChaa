@@ -171,6 +171,7 @@ router.post('/chat/test', wrap(async (req, res) => {
 router.post('/behavior/preview', wrap((req, res) => {
   const message = String(req.body?.message || '');
   const mood = require('../bot/mood').detect(message);
+  const lang = require('../bot/language').detect(message);
   const tod = require('../bot/timeofday');
   const tz = config.getSetting('timezone') || 'UTC';
   const period = tod.periodFor(tod.hourIn(tz));
@@ -184,6 +185,8 @@ router.post('/behavior/preview', wrap((req, res) => {
   res.json({
     mood: mood.mood,
     moodHint: s('mood_adaptation') === 'on' ? mood.hint : '',
+    language: lang.name,
+    languageCode: lang.code,
     period: period.period,
     periodHint: s('time_awareness') === 'on' ? period.hint : '',
     timezone: tz,

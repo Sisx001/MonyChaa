@@ -91,6 +91,20 @@ test('mood: detects sentiment and returns a tone hint', () => {
   assert.strictEqual(detect('').mood, 'neutral');
 });
 
+test('language: detects script and Latin languages', () => {
+  const { detect } = require('../src/bot/language');
+  assert.strictEqual(detect('hello, how are you today').code, 'en');
+  assert.strictEqual(detect('bonjour, merci beaucoup pour tout').code, 'fr');
+  assert.strictEqual(detect('hola, gracias por la ayuda').code, 'es');
+  assert.strictEqual(detect('привет как дела').code, 'ru');
+  assert.strictEqual(detect('こんにちは元気ですか').code, 'ja'); // kana beats Han
+  assert.strictEqual(detect('你好吗今天').code, 'zh');
+  assert.strictEqual(detect('안녕하세요').code, 'ko');
+  assert.strictEqual(detect('شكرا جزيلا').code, 'ar');
+  assert.strictEqual(detect('').code, 'und');
+  assert.strictEqual(detect('12345 !!!').code, 'und'); // no language signal
+});
+
 test('timeofday: hours map to sensible periods with hints', () => {
   const { periodFor, hourIn } = require('../src/bot/timeofday');
   assert.strictEqual(periodFor(7).period, 'morning');
