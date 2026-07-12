@@ -131,7 +131,7 @@ Incoming DMs to your account are now answered as you. To pause instantly, DM `/p
 |-----|--------------|
 | **Dashboard** | Live stats, message/cost charts, per-provider usage, provider health, top contacts, per-assistant breakdown, 14-day volume trend |
 | **Chat** | ChatGPT-style playground (any model/persona, markdown, temperature, tokens, export) + **Behavior inspector** and **Dry run** — nothing is sent to Telegram |
-| **System Prompt** | Persona editor, **29 preloaded characters**, snippets, presets, version history with diff + one-click rollback, custom context blocks, quick test |
+| **System Prompt** | Persona editor, **40 preloaded characters**, snippets, presets, version history with diff + one-click rollback, custom context blocks, quick test |
 | **Model Gateway** | Primary provider/model, fallback chain, load balancing, **live model catalog** browser (pricing/context/vision badges), per-provider tests |
 | **Memory** | Global facts KB, vector memories, notes, export/import |
 | **Library** | Skills (install/create/learn), starter catalog, **GitHub one-click install**, **MCP servers** |
@@ -231,7 +231,7 @@ And the **Monitoring** tab shows a **sender mood mix** — the emotional breakdo
 
 ## 9. Preloaded characters
 
-**System Prompt → Preloaded characters.** One click applies a complete persona (prompt + emoji policy + reply style + temperature); your current prompt is auto-saved as a version first. 29 are built in:
+**System Prompt → Preloaded characters.** One click applies a complete persona (prompt + emoji policy + reply style + temperature); your current prompt is auto-saved as a version first. 40 are built in:
 
 Professional · Bestie · Charmer · Minimalist · Executive Assistant · Support Hero · Closer · Zen · Gen-Z · Diplomat · Coach · Butler · Comedian · Engineer · Listener · Hype · Stoic · Storyteller · Negotiator · Mentor · Concierge · Scientist · Chef · Detective · Poet · Trainer · Peacemaker · Hacker · Grandparent.
 
@@ -422,7 +422,7 @@ src/
 ├── index.js            # entry: bot + web server + scheduler
 ├── config.js           # env + DB-backed settings (~100 options)
 ├── assistants.js       # multi-bot manager (isolated brains)
-├── characters.js       # 29 preloaded personas
+├── characters.js       # 40 preloaded personas
 ├── skills.js           # skill catalog, GitHub install, self-learning
 ├── autoresponders.js   # keyword → instant reply
 ├── analytics.js        # stats, cost aggregation, mood breakdown

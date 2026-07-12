@@ -444,7 +444,13 @@ test('system: autofix actions run and reject unknown ones', () => {
 
 test('characters: apply sets prompt and generation defaults', () => {
   const characters = require('../src/characters');
-  assert.ok(characters.CHARACTERS.length >= 10);
+  assert.ok(characters.CHARACTERS.length >= 40);
+  // No duplicate ids, and every persona is fully formed.
+  const ids = characters.CHARACTERS.map(c => c.id);
+  assert.strictEqual(new Set(ids).size, ids.length);
+  for (const c of characters.CHARACTERS) {
+    assert.ok(c.id && c.name && c.prompt && c.emoji_usage && c.reply_style && c.temperature);
+  }
   characters.apply('minimal');
   assert.strictEqual(config.getSetting('active_character'), 'minimal');
   assert.strictEqual(config.getSetting('emoji_usage'), 'none');

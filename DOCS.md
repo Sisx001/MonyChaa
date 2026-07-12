@@ -55,7 +55,7 @@ Incoming DMs are now answered as you.
 
 ## 4. Characters & personas
 
-**System Prompt → Preloaded characters.** One click applies a complete persona (prompt + emoji policy + reply style + temperature). Your current prompt is auto-saved as a version first. 29 are built in — Professional, Bestie, Charmer, Minimalist, Executive Assistant, Support Hero, Closer, Zen, Gen-Z, Diplomat, Coach, Butler, Comedian, Engineer, Listener, Hype, Stoic, Storyteller, Negotiator, Mentor, Concierge, Scientist, Chef, Detective, Poet, Trainer, Peacemaker, Hacker, Grandparent. Edit freely afterward.
+**System Prompt → Preloaded characters.** One click applies a complete persona (prompt + emoji policy + reply style + temperature). Your current prompt is auto-saved as a version first. 40 are built in — Professional, Bestie, Charmer, Minimalist, Executive Assistant, Support Hero, Closer, Zen, Gen-Z, Diplomat, Coach, Butler, Comedian, Engineer, Listener, Hype, Stoic, Storyteller, Negotiator, Mentor, Concierge, Scientist, Chef, Detective, Poet, Trainer, Peacemaker, Hacker, Grandparent, Analyst, Creative, Recruiter, Realtor, Travel Agent, Tutor, Caregiver, Journalist, Gamer, Astrologer, Barista. Edit freely afterward.
 
 ---
 
