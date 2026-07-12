@@ -59,6 +59,22 @@ test('splitBursts keeps short messages whole, splits long ones', () => {
   assert.strictEqual(bursts.join('\n\n').replace(/\n\n/g, ''), 'A'.repeat(150) + 'B'.repeat(150) + 'C'.repeat(150));
 });
 
+test('humanize: roughens like texting but preserves meaning and links', () => {
+  const { humanize } = require('../src/bot/human');
+  // off is a no-op.
+  assert.strictEqual(humanize('Sure thing.', 'off'), 'Sure thing.');
+  // rng always high → nothing changes.
+  assert.strictEqual(humanize('Sure thing.', 'natural', () => 1), 'Sure thing.');
+  // rng always low, natural → drop trailing period + lowercase short start.
+  assert.strictEqual(humanize('Sure thing.', 'natural', () => 0), 'sure thing');
+  // Questions/exclamations keep their terminal punctuation.
+  assert.strictEqual(humanize('Cool!', 'natural', () => 0), 'cool!');
+  // "I" is never lowercased; period still drops.
+  assert.strictEqual(humanize("I'm on it.", 'natural', () => 0), "I'm on it");
+  // A trailing URL keeps its period (never truncate a link).
+  assert.strictEqual(humanize('see http://example.com.', 'natural', () => 0), 'see http://example.com.');
+});
+
 test('provider registry integrity', () => {
   const { PROVIDERS, modelCost, isConfigured } = require('../src/llm/providers');
   for (const [id, p] of Object.entries(PROVIDERS)) {

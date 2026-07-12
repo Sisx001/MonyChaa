@@ -153,6 +153,11 @@ const SETTING_DEFAULTS = {
   after_hours_message: '',      // sent outside business hours (once per window)
   repeat_guard: 'on',           // avoid sending an identical reply twice in a row
 
+  // ---- Human behavior ----
+  humanize: 'on',               // prompt-level: instruct the model to text like a person
+  human_imperfections: 'subtle', // code-level output roughening: off | subtle | natural
+  human_filler_ban: 'on',       // forbid AI-tell phrases ("as an AI", "I hope this helps")
+
   // ---- Content controls ----
   strip_markdown: 'on',         // remove markdown formatting from replies
   max_links_per_reply: '3',

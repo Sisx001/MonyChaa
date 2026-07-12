@@ -92,6 +92,10 @@ Add keys two ways: `.env`, or **Settings → API keys** (stored in DB, override 
 - **Offline message** — one-time notice sent when auto-reply is off.
 - **Reply policy** — probability %, quiet hours (silent), blacklist words, ignore forwarded, per-media toggles (photo/voice/sticker), minimum length.
 - **Per contact** — tone, rules, blocked topics, VIP priority, custom prompt, voice replies, delay multiplier.
+- **Human behavior** (Settings → Generation → Human behavior) — makes replies read like a person texting, not an assistant. Two layers kept in lockstep:
+  - **Text like a human (prompt)** — appends directives telling the model to use contractions, vary sentence length, keep punctuation casual, and never mention being an AI.
+  - **Output imperfections (code)** — `subtle`/`natural` roughening applied after generation: occasionally drops a trailing period or lowercases a short casual line, relaxes spaced ellipses. Never touches links, questions, or exclamations.
+  - **Ban assistant filler** — strips tell-tale phrases ("I hope this helps", "as an AI", "let me know if you need anything else") at the prompt level.
 
 Owner commands (DM the bot): `/status`, `/away`, `/pause`, `/summary`, `/id`, `/help`.
 

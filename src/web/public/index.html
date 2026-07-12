@@ -698,6 +698,22 @@
       </div>
 
       <div class="card">
+        <h3><svg class="ic ic-sm"><use href="#i-chat"/></svg> Human behavior</h3>
+        <p class="hint">Makes replies read like a real person texting instead of an assistant. The prompt directive and the output roughening are kept in lockstep — turn them together for a consistent voice.</p>
+        <div class="form-grid">
+          <label>Text like a human (prompt) <select data-setting="humanize"><option value="on">On</option><option value="off">Off</option></select></label>
+          <label>Output imperfections (code)
+            <select data-setting="human_imperfections">
+              <option value="off">Off (polished)</option>
+              <option value="subtle">Subtle</option>
+              <option value="natural">Natural</option>
+            </select>
+          </label>
+          <label>Ban assistant filler phrases <select data-setting="human_filler_ban"><option value="on">On</option><option value="off">Off</option></select></label>
+        </div>
+      </div>
+
+      <div class="card">
         <h3>Reply policy</h3>
         <div class="form-grid">
           <label>Reply probability (%) <input type="number" min="0" max="100" data-setting="reply_probability"></label>

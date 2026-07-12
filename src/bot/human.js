@@ -66,6 +66,48 @@ function splitBursts(text) {
   return bursts;
 }
 
+// Intensity of output roughening for each humanize level.
+const IMPERFECTION = {
+  subtle:  { dropPeriod: 0.30, lowerStart: 0.0,  softEllipsis: 0.2 },
+  natural: { dropPeriod: 0.55, lowerStart: 0.40, softEllipsis: 0.4 },
+};
+
+/**
+ * Roughen an LLM reply so it reads like a person texting rather than an
+ * assistant: occasionally drop a trailing period, lowercase the start of a
+ * short casual line, relax "..." spacing. Pure + deterministic when given an
+ * `rng`, so it's testable. Never touches links, questions, or exclamations.
+ * `level`: 'off' | 'subtle' | 'natural'.
+ */
+function humanize(text, level = 'off', rng = Math.random) {
+  const cfg = IMPERFECTION[level];
+  if (!cfg || !text) return text;
+  const lines = String(text).split('\n');
+  const out = lines.map(line => {
+    let s = line;
+    const trimmed = s.trimEnd();
+    // Lowercase the first letter of a short, single-clause casual line.
+    if (cfg.lowerStart && rng() < cfg.lowerStart &&
+        trimmed.length > 0 && trimmed.length < 60 && !/[.!?].+[.!?]/.test(trimmed) &&
+        /^[A-Z][a-z]/.test(trimmed) && !/^I\b/.test(trimmed)) {
+      s = s[0].toLowerCase() + s.slice(1);
+    }
+    // Drop a single trailing period (not ?, !, or an ellipsis) — but not on
+    // lines that end in a URL.
+    if (cfg.dropPeriod && rng() < cfg.dropPeriod &&
+        /[A-Za-z0-9)\]"']\.$/.test(s.trimEnd()) && !/\.\.\.$/.test(s.trimEnd()) &&
+        !/https?:\/\/\S+$/.test(s.trimEnd())) {
+      s = s.replace(/\.(\s*)$/, '$1');
+    }
+    // Relax a spaced-out ellipsis into a natural trailing one.
+    if (cfg.softEllipsis && rng() < cfg.softEllipsis) {
+      s = s.replace(/\s*\.\s*\.\s*\.\s*$/, '...');
+    }
+    return s;
+  });
+  return out.join('\n');
+}
+
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-module.exports = { delayPlan, splitBursts, sleep };
+module.exports = { delayPlan, splitBursts, humanize, sleep };

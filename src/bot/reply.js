@@ -112,6 +112,18 @@ function buildSystemPrompt(contact, extraContext, promptOverride = null, S = nul
   const maxLen = contact?.max_length || Number(get('max_response_length')) || 800;
   prompt += `\nKeep replies under ${maxLen} characters. Write like a real person texting — no markdown formatting.`;
 
+  // Human-behavior directives — kept in lockstep with the code-level humanizer
+  // so what the prompt promises is also what postProcess delivers.
+  if (get('humanize') === 'on') {
+    prompt += `\n\nText like a real person, not an assistant: use contractions, vary sentence length, ` +
+      `let punctuation be casual, and don't over-explain. A short, natural reply beats a polished one. ` +
+      `Never mention being an AI, a model, or a bot.`;
+  }
+  if (get('human_filler_ban') === 'on') {
+    prompt += `\nNever use assistant filler like "I hope this helps", "feel free to", "as an AI", ` +
+      `"certainly!", "of course!", "let me know if you need anything else", or "is there anything else".`;
+  }
+
   if (extraContext) prompt += `\n\nLive context you may use:\n${extraContext}`;
   return prompt;
 }
@@ -225,6 +237,9 @@ function postProcess(text, aid = 0) {
     let seen = 0;
     out = out.replace(/https?:\/\/\S+/g, url => (++seen > maxLinks ? '' : url));
   }
+  // Human roughening — make replies read like texting, not an assistant.
+  const level = config.getSetting('human_imperfections');
+  if (level && level !== 'off') out = require('./human').humanize(out, level);
   const sig = config.getSetting('signature_name');
   if (sig) out += `\n— ${sig}`;
   return out.trim();
