@@ -45,7 +45,7 @@ function parseJsonArray(text) {
 
 /** Build the full system prompt. `promptOverride` (per-assistant) wins over the
  * global prompt; `S` is an optional per-assistant setting getter. */
-function buildSystemPrompt(contact, extraContext, promptOverride = null, S = null) {
+function buildSystemPrompt(contact, extraContext, promptOverride = null, S = null, maxLenOverride = null) {
   const get = S || config.getSetting;
   const tz = get('timezone') || 'UTC';
   const now = new Date();
@@ -129,7 +129,7 @@ function buildSystemPrompt(contact, extraContext, promptOverride = null, S = nul
   const writingStyle = get('writing_style');
   if (writingStyle) prompt += `\nStyle notes: ${writingStyle}`;
 
-  const maxLen = contact?.max_length || Number(get('max_response_length')) || 800;
+  const maxLen = maxLenOverride || contact?.max_length || Number(get('max_response_length')) || 800;
   prompt += `\nKeep replies under ${maxLen} characters. Write like a real person texting — no markdown formatting.`;
 
   // Human-behavior directives — kept in lockstep with the code-level humanizer
@@ -341,8 +341,15 @@ async function generateReply(chatId, incomingText, { attachments = [], assistant
     if (hint) extraContext += (extraContext ? '\n\n' : '') + hint;
   }
 
+  // Target length: an explicit per-contact cap wins; otherwise the settings base,
+  // optionally scaled down to fit the incoming message's size (adaptive_length).
+  let maxLen = contact?.max_length || Number(S('max_response_length')) || 800;
+  if (!contact?.max_length && S('adaptive_length') === 'on') {
+    maxLen = require('./replylength').suggest(incomingText, maxLen);
+  }
+
   const history = conversations.getHistory(chatId, undefined, aid);
-  const messages = [{ role: 'system', content: buildSystemPrompt(contact, extraContext, promptOverride, S) }];
+  const messages = [{ role: 'system', content: buildSystemPrompt(contact, extraContext, promptOverride, S, maxLen) }];
   for (const h of history) {
     messages.push({ role: h.role === 'assistant' ? 'assistant' : 'user', content: h.content });
   }
@@ -352,7 +359,6 @@ async function generateReply(chatId, incomingText, { attachments = [], assistant
     lastMsg.content = [{ type: 'text', text: typeof lastMsg.content === 'string' ? lastMsg.content : incomingText }, ...attachments];
   }
 
-  const maxLen = contact?.max_length || Number(S('max_response_length')) || 800;
   const result = await chat(messages, {
     maxTokens: Math.min(2048, Math.ceil(maxLen / 2.5)),
     temperature: Number(S('temperature')) || 0.8,

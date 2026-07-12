@@ -91,6 +91,18 @@ test('mood: detects sentiment and returns a tone hint', () => {
   assert.strictEqual(detect('').mood, 'neutral');
 });
 
+test('replylength: scales target to message size, never exceeds base', () => {
+  const { suggest } = require('../src/bot/replylength');
+  const base = 800;
+  const tiny = suggest('ok', base);
+  const short = suggest('can you send me the file please', base);
+  const long = suggest('word '.repeat(60), base);
+  assert.ok(tiny < short && short < long);
+  assert.ok(long <= base && tiny >= 120);
+  // Multiple questions bump a short message up to a fuller answer.
+  assert.ok(suggest('what time? and where? and how much?', base) >= base * 0.8);
+});
+
 test('urgency: scores time-sensitivity with sane ordering', () => {
   const { score } = require('../src/bot/urgency');
   assert.strictEqual(score('').level, 'low');

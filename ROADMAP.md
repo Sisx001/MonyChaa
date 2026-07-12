@@ -14,7 +14,7 @@ Make the bot understand *what kind* of message it's answering, and answer smarte
 - ✅ 1.1 **Language detection** — detect the incoming message's language; surfaced in the Behavior inspector.
 - ✅ 1.2 **Intent classification** — greeting / smalltalk / complaint / feedback / question / request / statement; shown in the inspector.
 - ✅ 1.3 **Urgency scoring** — 0–100 from keywords, punctuation and shouting; shown in the inspector.
-- ⬜ 1.4 **Adaptive reply length** — auto-scale target length to the incoming message's size/complexity.
+- ✅ 1.4 **Adaptive reply length** — target length scales to the incoming message's size (setting + prompt-integrated).
 - ⬜ 1.5 **Quick-reply suggestions** — offline candidate replies for a message (panel + future Telegram).
 - ⬜ 1.6 **Question detector** — flag when a message actually asks something needing an answer.
 
