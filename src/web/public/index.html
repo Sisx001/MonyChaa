@@ -215,8 +215,10 @@
         <div class="input-row">
           <input id="bhv-input" placeholder="e.g. this is ridiculous, I've waited all day!!" style="flex:1">
           <button class="btn" id="bhv-run"><svg class="ic ic-sm"><use href="#i-zap"/></svg> Inspect</button>
+          <button class="btn" id="bhv-dryrun"><svg class="ic ic-sm"><use href="#i-file"/></svg> Dry run</button>
         </div>
         <div id="bhv-result" class="hint" style="margin-top:10px"></div>
+        <pre id="bhv-prompt" style="display:none;margin-top:10px;max-height:320px;overflow:auto;white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.82em;line-height:1.5;padding:12px;border-radius:10px;background:var(--surface-2,rgba(127,127,127,.08));border:1px solid var(--border,rgba(127,127,127,.2))"></pre>
       </div>
     </section>
 

@@ -102,6 +102,16 @@ test('timeofday: hours map to sensible periods with hints', () => {
   assert.ok(Number.isInteger(h) && h >= 0 && h < 24);
 });
 
+test('replyPolicyBlock: passes normal text, blocks blacklisted words', () => {
+  const { replyPolicyBlock } = require('../src/bot/reply');
+  const config = require('../src/config');
+  config.setSetting('blacklist_words', JSON.stringify(['spam']));
+  config.setSetting('min_message_length', '0');
+  assert.strictEqual(replyPolicyBlock('hello there', null, 0), null);
+  assert.strictEqual(replyPolicyBlock('this is SPAM content', null, 0), 'blacklisted_word');
+  config.setSetting('blacklist_words', '[]');
+});
+
 test('provider registry integrity', () => {
   const { PROVIDERS, modelCost, isConfigured } = require('../src/llm/providers');
   for (const [id, p] of Object.entries(PROVIDERS)) {

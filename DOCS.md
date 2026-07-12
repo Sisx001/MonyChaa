@@ -99,6 +99,7 @@ Add keys two ways: `.env`, or **Settings → API keys** (stored in DB, override 
   - **Mood adaptation** — reads the sender's apparent mood from their message (upset / sad / anxious / excited) and injects a matching tone hint so the reply meets them where they are — acknowledging frustration, being gentle when they're down, or matching their excitement.
   - **Time-of-day awareness** — adapts reply energy to the sender's local time (from your timezone): low-key late at night, a little fresh in the morning, relaxed in the evening.
   - **Behavior inspector** (Chat tab) — type any sample message and see exactly which human-layer signals fire (detected mood, local time period, and the active directives) with no model call. Use it to tune the settings above before they go live.
+  - **Dry run** (Chat tab) — the "Dry run" button assembles and shows the exact system prompt that would be sent for a message (with mood, time, skills and contact profile baked in), plus the offline verdict: whether an auto-responder or skill triggers, whether the reply policy would block it, and whether it would reach the LLM at all. Still no model call — it's the fastest way to see *why* the bot would respond the way it does.
 
 Owner commands (DM the bot): `/status`, `/away`, `/pause`, `/summary`, `/id`, `/help`.
 

@@ -1173,7 +1173,27 @@ async function runBehaviorInspector() {
       <div style="margin-top:4px"><b>Local time:</b> <span class="badge badge-gray">${esc(b.period)}</span> <span class="hint">(${esc(b.timezone)})</span>${b.periodHint ? ` — ${esc(b.periodHint)}` : ''}</div>`;
   } catch (e) { box.textContent = e.message; }
 }
+async function runBehaviorDryRun() {
+  const message = $('#bhv-input').value.trim();
+  if (!message) return;
+  const box = $('#bhv-result'); const pre = $('#bhv-prompt');
+  box.textContent = 'Assembling…'; pre.style.display = 'none';
+  try {
+    const d = await api('/behavior/dryrun', { method: 'POST', body: { message } });
+    const chips = [
+      d.wouldReply ? '<span class="badge badge-green">would reply</span>' : '<span class="badge badge-gray">no LLM reply</span>',
+      d.autoresponder ? '<span class="badge badge-blue">auto-responder match</span>' : '',
+      d.skillActive ? '<span class="badge badge-blue">skill active</span>' : '',
+      d.policyBlock ? `<span class="badge badge-red">blocked: ${esc(d.policyBlock)}</span>` : '',
+    ].filter(Boolean).join(' ');
+    box.innerHTML = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">${chips}</div>`
+      + (d.autoresponder ? `<div><b>Canned reply:</b> ${esc(d.autoresponder)}</div>` : '')
+      + `<div class="hint">Assembled system prompt (${d.chars} chars):</div>`;
+    pre.textContent = d.systemPrompt; pre.style.display = 'block';
+  } catch (e) { box.textContent = e.message; }
+}
 $('#bhv-run').addEventListener('click', runBehaviorInspector);
+$('#bhv-dryrun').addEventListener('click', runBehaviorDryRun);
 $('#bhv-input').addEventListener('keydown', e => { if (e.key === 'Enter') runBehaviorInspector(); });
 
 $('#chat-provider').addEventListener('change', fillChatModels);

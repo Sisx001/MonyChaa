@@ -186,6 +186,35 @@ router.post('/behavior/preview', wrap((req, res) => {
   });
 }));
 
+// Behavior dry-run: assemble the exact system prompt that would be sent for a
+// message (mood, time, skills, contact profile) plus the offline triggers —
+// autoresponder match and reply-policy verdict. No LLM call.
+router.post('/behavior/dryrun', wrap((req, res) => {
+  const message = String(req.body?.message || '');
+  const chatId = req.body?.chat_id ? Number(req.body.chat_id) : null;
+  const contact = chatId
+    ? db.prepare('SELECT * FROM contacts WHERE chat_id = ? AND assistant_id = 0').get(chatId)
+    : null;
+  let extra = '';
+  const skillBlock = require('../skills').activeFor(message);
+  if (skillBlock) extra += 'Active skills — follow these instructions:\n' + skillBlock;
+  if (config.getSetting('mood_adaptation') === 'on') {
+    const { hint } = require('../bot/mood').detect(message);
+    if (hint) extra += (extra ? '\n\n' : '') + hint;
+  }
+  const systemPrompt = buildSystemPrompt(contact, extra || null);
+  const canned = require('../autoresponders').match(message);
+  const policyBlock = require('../bot/reply').replyPolicyBlock(message, chatId, 0);
+  res.json({
+    systemPrompt,
+    chars: systemPrompt.length,
+    skillActive: Boolean(skillBlock),
+    autoresponder: canned || null,
+    policyBlock: policyBlock || null,
+    wouldReply: !policyBlock && !canned,
+  });
+}));
+
 // Multi-turn playground chat (ChatGPT-style panel chat).
 router.post('/chat/playground', wrap(async (req, res) => {
   const { messages, provider, model, temperature, max_tokens, top_p, use_persona, system } = req.body;

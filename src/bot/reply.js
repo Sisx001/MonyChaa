@@ -390,4 +390,4 @@ async function generateReply(chatId, incomingText, { attachments = [], assistant
   };
 }
 
-module.exports = { generateReply, getContact, upsertContact, buildSystemPrompt, isAway, postProcess, sleep };
+module.exports = { generateReply, getContact, upsertContact, buildSystemPrompt, isAway, postProcess, replyPolicyBlock, sleep };
