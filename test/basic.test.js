@@ -91,6 +91,18 @@ test('mood: detects sentiment and returns a tone hint', () => {
   assert.strictEqual(detect('').mood, 'neutral');
 });
 
+test('intent: classifies message intent by ordered rules', () => {
+  const { classify } = require('../src/bot/intent');
+  assert.strictEqual(classify('hi there').intent, 'greeting');
+  assert.strictEqual(classify('how are you?').intent, 'smalltalk');
+  assert.strictEqual(classify('this is broken and terrible').intent, 'complaint');
+  assert.strictEqual(classify('thanks so much!').intent, 'feedback');
+  assert.strictEqual(classify('what time do you open').intent, 'question');
+  assert.strictEqual(classify('please send me the invoice').intent, 'request');
+  assert.strictEqual(classify('the meeting is at 3pm').intent, 'statement');
+  assert.strictEqual(classify('').intent, 'unknown');
+});
+
 test('language: detects script and Latin languages', () => {
   const { detect } = require('../src/bot/language');
   assert.strictEqual(detect('hello, how are you today').code, 'en');
