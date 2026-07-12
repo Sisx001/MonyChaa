@@ -103,6 +103,24 @@ function diagnostics() {
   const size = dbSizeMB();
   push('Database', size < 500, `${size}MB`, 'vacuum_db');
 
+  // Away mode left on — easy to forget; replies are suppressed while it is.
+  const config = require('./config');
+  const away = config.getSetting('away_mode') === 'on';
+  push('Away mode', !away, away ? 'ON — auto-replies are paused. Turn off to resume.' : 'Off', 'clear_away');
+
+  // Mood adaptation on but nothing is being detected — often a language-mix or
+  // detector-coverage hint. Only meaningful with a decent sample.
+  if (config.getSetting('mood_adaptation') === 'on') {
+    try {
+      const mb = require('./analytics').moodBreakdown();
+      const enoughSample = mb.total >= 30;
+      const dead = enoughSample && mb.expressiveness === 0;
+      push('Mood detection', !dead,
+        dead ? `On, but 0% of ${mb.total} recent messages read as emotional — check the language mix.`
+             : `${mb.expressiveness}% expressive over ${mb.total} messages`, null);
+    } catch { /* analytics best-effort */ }
+  }
+
   return checks;
 }
 
@@ -126,6 +144,9 @@ function autofix(action) {
     case 'clear_sessions':
       db.prepare("DELETE FROM sessions WHERE expires_at < datetime('now')").run();
       return 'Expired sessions cleared.';
+    case 'clear_away':
+      require('./config').setSetting('away_mode', 'off');
+      return 'Away mode turned off — auto-replies resumed.';
     case 'fix_all': {
       const msgs = [];
       for (const a of ['reset_health', 'clear_errors', 'requeue_scheduled', 'clear_sessions', 'vacuum_db']) {

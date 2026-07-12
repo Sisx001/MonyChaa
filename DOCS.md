@@ -128,6 +128,8 @@ Owner commands (DM the bot): `/status`, `/away`, `/pause`, `/summary`, `/id`, `/
 
 **Monitoring tab** shows live CPU load, system memory, disk, DB size, process/host uptime, and a health-diagnostics panel. Each failing check has a **Fix** button; **Auto-fix all** runs them together. Actions: reset provider health, clear old errors, requeue overdue scheduled messages, clear expired sessions, VACUUM the database. **Restart** exits cleanly so your process manager (PM2/Docker/systemd) respawns.
 
+Config-sanity checks run alongside the infra ones: **Away mode** warns (with a one-click *Turn off*) when auto-replies are silently paused, and **Mood detection** warns when mood adaptation is on but a healthy sample of recent messages shows 0% emotional signal — a hint the language mix or detector coverage needs a look. (Away mode is deliberately left out of *Auto-fix all* — it's your intent to toggle, not a fault to sweep.)
+
 **Sender mood mix** — a bar breakdown of how the last few hundred incoming messages read emotionally (upset / sad / anxious / excited / neutral), plus an *expressiveness* figure (the share carrying a readable emotional signal). It uses the same mood detector that steers replies, so it doubles as a live check that mood adaptation is seeing what you'd expect.
 
 ---

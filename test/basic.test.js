@@ -102,6 +102,18 @@ test('timeofday: hours map to sensible periods with hints', () => {
   assert.ok(Number.isInteger(h) && h >= 0 && h < 24);
 });
 
+test('system diagnostics: away-mode check flags and clear_away fixes it', () => {
+  const config = require('../src/config');
+  const sys = require('../src/system');
+  config.setSetting('away_mode', 'on');
+  const away = sys.diagnostics().find(c => c.name === 'Away mode');
+  assert.strictEqual(away.status, 'warn');
+  assert.strictEqual(away.fix, 'clear_away');
+  sys.autofix('clear_away');
+  assert.strictEqual(config.getSetting('away_mode'), 'off');
+  assert.strictEqual(sys.diagnostics().find(c => c.name === 'Away mode').status, 'ok');
+});
+
 test('analytics.moodBreakdown classifies incoming messages', () => {
   const analytics = require('../src/analytics');
   const db = require('../src/db/schema');
