@@ -778,6 +778,10 @@ async function loadContactStats(c) {
     ];
     box.innerHTML = tiles.map(([l, v, sub]) =>
       `<div class="stat"><div class="label">${esc(l)}</div><div class="value">${esc(String(v))}</div><div class="sub">${esc(sub)}</div></div>`).join('');
+    if (s.topics && s.topics.length) {
+      box.innerHTML += `<div style="grid-column:1/-1;display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:2px">
+        <span class="hint">Topics:</span>${s.topics.map(t => `<span class="badge badge-blue" title="mentioned ${t.count}×">${esc(t.word)}</span>`).join(' ')}</div>`;
+    }
     box.style.display = '';
   } catch { box.style.display = 'none'; }
 }

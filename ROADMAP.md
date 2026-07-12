@@ -24,7 +24,7 @@ Make the bot understand *what kind* of message it's answering, and answer smarte
 Turn the contacts list into a lightweight CRM.
 
 - ✅ 2.1 **Interaction stats** — per-contact volumes, response rate, cadence, first/last seen; shown atop the contact editor.
-- ⬜ 2.2 **Dominant topics** — keyword-topic extraction from a contact's history.
+- ✅ 2.2 **Dominant topics** — recurring, stopword-filtered keywords from a contact's history; shown as chips in the editor.
 - ⬜ 2.3 **Relationship strength** — a 0–100 score from frequency, recency and reciprocity.
 - ⬜ 2.4 **Contact timeline** — a compact recent-activity timeline endpoint + panel view.
 - ⬜ 2.5 **Important dates** — remember birthdays/anniversaries per contact, surface upcoming ones.

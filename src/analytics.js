@@ -125,6 +125,32 @@ function contactStats(chatId, assistantId = 0) {
   };
 }
 
+// Common words to ignore when surfacing a contact's topics.
+const STOPWORDS = new Set(('a an and the of to in on for with at by from is are was were be been being do does did ' +
+  'have has had i you he she it we they me my your our their this that these those not no yes ok okay hi hey hello ' +
+  'thanks thank please can could would will just get got so if then than as but or how what when where who why which ' +
+  'about out up down over here there now today am pm your youre im ive ill dont cant wont lets know like want need ' +
+  'good great sure yeah yep nope going go come back one two also really very much more some any all been its').split(/\s+/));
+
+/** Extract a contact's dominant topics (frequent, meaningful words). */
+function contactTopics(chatId, assistantId = 0, top = 6, limit = 120) {
+  const rows = db.prepare(
+    "SELECT content FROM messages_log WHERE chat_id = ? AND assistant_id = ? AND direction = 'incoming' AND content IS NOT NULL ORDER BY id DESC LIMIT ?"
+  ).all(chatId, assistantId, limit);
+  const counts = {};
+  for (const r of rows) {
+    for (const w of String(r.content).toLowerCase().match(/[a-z][a-z'-]{2,}/g) || []) {
+      if (STOPWORDS.has(w) || w.length < 3) continue;
+      counts[w] = (counts[w] || 0) + 1;
+    }
+  }
+  return Object.entries(counts)
+    .filter(([, n]) => n >= 2)               // a topic must recur
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, top)
+    .map(([word, count]) => ({ word, count }));
+}
+
 /** A single contact's dominant mood over their recent incoming messages. */
 function contactMoodProfile(chatId, assistantId = 0, limit = 40) {
   const { detect } = require('./bot/mood');
@@ -161,4 +187,4 @@ function dailySummaryText() {
   ].join('\n');
 }
 
-module.exports = { stats, dailySummaryText, moodBreakdown, contactMoodProfile, contactStats };
+module.exports = { stats, dailySummaryText, moodBreakdown, contactMoodProfile, contactStats, contactTopics };

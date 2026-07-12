@@ -206,6 +206,18 @@ test('analytics.contactStats computes volumes, response rate and cadence', () =>
   db.prepare('DELETE FROM messages_log WHERE chat_id = 313131').run();
 });
 
+test('analytics.contactTopics surfaces recurring meaningful words', () => {
+  const analytics = require('../src/analytics');
+  const db = require('../src/db/schema');
+  const ins = db.prepare("INSERT INTO messages_log (chat_id, assistant_id, direction, content) VALUES (?, 0, 'incoming', ?)");
+  ['can we talk about the invoice', 'the invoice is wrong again', 'about that invoice payment',
+   'payment failed please help', 'the payment did not go through'].forEach(t => ins.run(424242, t));
+  const topics = analytics.contactTopics(424242, 0).map(t => t.word);
+  assert.ok(topics.includes('invoice') && topics.includes('payment'));
+  assert.ok(!topics.includes('the') && !topics.includes('please')); // stopwords excluded
+  db.prepare('DELETE FROM messages_log WHERE chat_id = 424242').run();
+});
+
 test('analytics.contactMoodProfile finds a dominant mood only when it is a pattern', () => {
   const analytics = require('../src/analytics');
   const db = require('../src/db/schema');
