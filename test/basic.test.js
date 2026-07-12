@@ -89,6 +89,19 @@ test('mood: detects sentiment and returns a tone hint', () => {
   assert.strictEqual(detect('').mood, 'neutral');
 });
 
+test('timeofday: hours map to sensible periods with hints', () => {
+  const { periodFor, hourIn } = require('../src/bot/timeofday');
+  assert.strictEqual(periodFor(7).period, 'morning');
+  assert.strictEqual(periodFor(14).period, 'afternoon');
+  assert.strictEqual(periodFor(19).period, 'evening');
+  assert.strictEqual(periodFor(23).period, 'late night');
+  assert.strictEqual(periodFor(2).period, 'late night'); // wraps past midnight
+  assert.ok(periodFor(23).hint.length > 0);
+  // hourIn tolerates a bad timezone without throwing.
+  const h = hourIn('Not/AZone');
+  assert.ok(Number.isInteger(h) && h >= 0 && h < 24);
+});
+
 test('provider registry integrity', () => {
   const { PROVIDERS, modelCost, isConfigured } = require('../src/llm/providers');
   for (const [id, p] of Object.entries(PROVIDERS)) {

@@ -68,6 +68,11 @@ function buildSystemPrompt(contact, extraContext, promptOverride = null, S = nul
   let prompt = fillTemplate(template, vars);
 
   prompt += `\n\nCurrent date/time: ${vars.date}, ${vars.time} (${tz}).`;
+  if (get('time_awareness') === 'on') {
+    const tod = require('./timeofday');
+    const { hint } = tod.periodFor(tod.hourIn(tz, now));
+    if (hint) prompt += `\n${hint}`;
+  }
   if (vars.facts) prompt += `\n\nThings I know (use naturally, never dump):\n${vars.facts}`;
 
   if (contact) {
