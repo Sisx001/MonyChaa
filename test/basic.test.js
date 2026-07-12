@@ -91,6 +91,18 @@ test('mood: detects sentiment and returns a tone hint', () => {
   assert.strictEqual(detect('').mood, 'neutral');
 });
 
+test('urgency: scores time-sensitivity with sane ordering', () => {
+  const { score } = require('../src/bot/urgency');
+  assert.strictEqual(score('').level, 'low');
+  assert.strictEqual(score('just whenever you get a chance').level, 'low');
+  const high = score('emergency, need this now, please respond asap!!!');
+  assert.strictEqual(high.level, 'high');
+  const casual = score('the report looks fine, thanks');
+  assert.ok(high.score > score('can you reply today?').score);
+  assert.ok(score('can you reply today?').score > casual.score);
+  assert.ok(high.score >= 0 && high.score <= 100);
+});
+
 test('intent: classifies message intent by ordered rules', () => {
   const { classify } = require('../src/bot/intent');
   assert.strictEqual(classify('hi there').intent, 'greeting');
