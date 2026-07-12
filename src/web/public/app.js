@@ -57,7 +57,7 @@ function showLogin() {
 }
 async function doLogin() {
   $('#login-error').textContent = '';
-  const body = { username: $('#login-username').value, password: $('#login-password').value };
+  const body = { username: $('#login-username').value, password: $('#login-password').value, remember: $('#login-remember').checked };
   const totp = $('#login-totp').value.trim();
   if (totp) body.totp = totp;
   const res = await fetch('/api/login', {
@@ -1473,8 +1473,30 @@ $('#twofa-disable-btn')?.addEventListener('click', async () => {
   catch (e) { toast(e.message, false); }
 });
 
+async function loadMySessions() {
+  const rows = await api('/sessions').catch(() => []);
+  const geo = s => `${s.flag ? s.flag + ' ' : ''}${esc(s.ip || '—')}${s.country ? ` <span class="hint">${esc(s.country)}</span>` : ''}`;
+  const status = s => s.current ? '<span class="badge badge-blue">this device</span>'
+    : s.active ? '<span class="badge badge-green">active</span>'
+    : '<span class="badge badge-gray">revoked</span>';
+  $('#mysessions-table tbody').innerHTML = rows.length ? rows.map(s => `
+    <tr>
+      <td><b>${esc(s.label || 'Unknown')}</b>${s.remember ? ' <span class="badge badge-gray">remembered</span>' : ''}</td>
+      <td>${geo(s)}</td>
+      <td>${fmtTime(s.created_at)}</td>
+      <td>${fmtTime(s.last_seen)}</td>
+      <td>${status(s)}</td>
+      <td>${s.current || !s.active ? '' : `<button class="btn btn-sm btn-danger" data-revoke="${esc(s.id)}">Revoke</button>`}</td>
+    </tr>`).join('') : '<tr><td colspan="6" class="hint">No sessions</td></tr>';
+  $$('[data-revoke]').forEach(b => b.addEventListener('click', async () => {
+    try { await api('/sessions/' + encodeURIComponent(b.dataset.revoke), { method: 'DELETE' }); toast('Session revoked'); loadMySessions(); }
+    catch (e) { toast(e.message, false); }
+  }));
+}
+
 async function loadSecurity() {
   load2fa().catch(() => {});
+  loadMySessions().catch(() => {});
   const [users, sessions, attempts, bans, audit] = await Promise.all([
     api('/users').catch(() => []), api('/security/sessions'), api('/security/attempts'),
     api('/security/bans'), api('/security/audit'),
@@ -1532,6 +1554,11 @@ $('#ban-add').addEventListener('click', async () => {
   await api('/security/bans', { method: 'POST', body: { ip: $('#ban-ip').value.trim(), reason: $('#ban-reason').value } });
   $('#ban-ip').value = ''; $('#ban-reason').value = '';
   toast('IP banned'); loadSecurity();
+});
+$('#revoke-others').addEventListener('click', async () => {
+  if (!confirm('Sign out all other devices? They will need to log in again.')) return;
+  try { const r = await api('/sessions/revoke-others', { method: 'POST' }); toast(`Signed out ${r.revoked} other session(s)`); loadMySessions(); }
+  catch (e) { toast(e.message, false); }
 });
 $('#user-add').addEventListener('click', () => openUser(null));
 function openUser(u) {

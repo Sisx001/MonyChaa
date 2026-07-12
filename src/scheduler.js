@@ -147,6 +147,16 @@ function start() {
     }
   });
 
+  // Hourly: prune revoked/expired panel sessions so the table stays lean.
+  cron.schedule('0 * * * *', () => {
+    try {
+      const n = require('./web/auth').pruneSessions();
+      if (n) logger.info(`Sessions: pruned ${n} revoked/expired`);
+    } catch (err) {
+      logger.warn(`Session prune skipped: ${err.message}`);
+    }
+  });
+
   logger.info('Scheduler started');
 }
 

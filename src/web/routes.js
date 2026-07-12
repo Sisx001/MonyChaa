@@ -669,6 +669,25 @@ router.delete('/security/bans/:ip', wrap((req, res) => {
   res.json({ ok: true });
 }));
 
+// ---------- My sessions (self-service device management) ----------
+router.get('/sessions', wrap(async (req, res) => {
+  if (!req.user) return res.json([]);
+  const rows = auth.listSessions(req.user.id, req.user.token);
+  res.json(await withGeo(rows));
+}));
+router.delete('/sessions/:id', wrap((req, res) => {
+  if (!req.user) return res.status(401).json({ error: 'auth required' });
+  const ok = auth.revokeSession(req.user.id, String(req.params.id));
+  if (ok) auth.audit(req, 'revoke_session', req.params.id, req.user);
+  res.json({ ok });
+}));
+router.post('/sessions/revoke-others', wrap((req, res) => {
+  if (!req.user) return res.status(401).json({ error: 'auth required' });
+  const n = auth.revokeOtherSessions(req.user.id, req.user.token);
+  auth.audit(req, 'revoke_other_sessions', `count=${n}`, req.user);
+  res.json({ ok: true, revoked: n });
+}));
+
 // ---------- Skills ----------
 const skills = require('../skills');
 

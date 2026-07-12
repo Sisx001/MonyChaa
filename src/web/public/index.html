@@ -599,6 +599,17 @@
       </div>
       <div class="card">
         <div class="row-between">
+          <h3><svg class="ic ic-sm"><use href="#i-lock"/></svg> My devices &amp; sessions</h3>
+          <button class="btn btn-danger btn-sm" id="revoke-others"><svg class="ic ic-sm"><use href="#i-x"/></svg> Sign out everywhere else</button>
+        </div>
+        <p class="hint">Every device signed into your account. Revoke any you don't recognize — the current one is marked <b>this device</b>.</p>
+        <table class="table" id="mysessions-table">
+          <thead><tr><th>Device</th><th>Location</th><th>Signed in</th><th>Last active</th><th>Status</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="row-between">
           <h3><svg class="ic ic-sm"><use href="#i-users"/></svg> Admin accounts</h3>
           <button class="btn btn-primary" id="user-add"><svg class="ic ic-sm"><use href="#i-user-plus"/></svg> Add user</button>
         </div>
@@ -808,6 +819,18 @@
       </div>
 
       <div class="card">
+        <h3><svg class="ic ic-sm"><use href="#i-lock"/></svg> Sessions &amp; panel security</h3>
+        <p class="hint">Controls how long panel logins stay valid and how aggressively idle or stolen sessions are cut off.</p>
+        <div class="form-grid">
+          <label>Session lifetime (hours) <input type="number" min="1" max="720" data-setting="session_ttl_hours"></label>
+          <label>"Remember me" lifetime (days) <input type="number" min="1" max="365" data-setting="session_remember_days"></label>
+          <label>Idle timeout (minutes, 0 = off) <input type="number" min="0" max="10080" data-setting="session_idle_timeout_min"></label>
+          <label>One session per user <select data-setting="session_single"><option value="off">Off (allow multiple devices)</option><option value="on">On (new login ends the others)</option></select></label>
+          <label>Bind session to origin IP <select data-setting="session_bind_ip"><option value="off">Off</option><option value="on">On (harder to steal cookies)</option></select></label>
+        </div>
+      </div>
+
+      <div class="card">
         <h3><svg class="ic ic-sm"><use href="#i-key"/></svg> API keys</h3>
         <p class="hint">Keys set here are stored in the local database and take effect immediately — they override <code>.env</code>. Values are never shown in full.</p>
         <div class="table-scroll">
@@ -942,6 +965,7 @@
     <input type="text" id="login-username" placeholder="Username" autocomplete="username" style="margin:10px 0 8px" value="admin">
     <input type="password" id="login-password" placeholder="Password" autocomplete="current-password" style="margin-bottom:10px">
     <input type="text" id="login-totp" placeholder="2FA code (if enabled)" inputmode="numeric" autocomplete="one-time-code" style="margin-bottom:10px;display:none">
+    <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:.9em;color:var(--text-dim);cursor:pointer"><input type="checkbox" id="login-remember"> <span>Keep me signed in on this device</span></label>
     <button class="btn btn-primary btn-lg" id="login-btn" style="width:100%">Sign in</button>
     <p class="hint" id="login-error" style="color:var(--red);margin-top:8px"></p>
   </div>

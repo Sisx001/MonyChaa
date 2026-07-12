@@ -205,6 +205,58 @@ test('auth: enabled() reflects presence of admin accounts', () => {
   db.prepare("DELETE FROM admin_users WHERE username = 't_authcheck'").run();
 });
 
+test('sessions: device label parsing from user-agent', () => {
+  const auth = require('../src/web/auth');
+  assert.strictEqual(
+    auth.deviceLabel('Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0'),
+    'Chrome · Windows');
+  assert.strictEqual(
+    auth.deviceLabel('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) Safari/605'),
+    'Safari · macOS');
+  assert.strictEqual(auth.deviceLabel('curl/8.0'), 'curl');
+  assert.strictEqual(auth.deviceLabel(''), 'Unknown');
+});
+
+test('sessions: ttl honors remember-me and configured lifetimes', () => {
+  const auth = require('../src/web/auth');
+  const config = require('../src/config');
+  config.setSetting('session_ttl_hours', '2');
+  config.setSetting('session_remember_days', '10');
+  assert.strictEqual(auth.sessionTtlSec(false), 2 * 3600);
+  assert.strictEqual(auth.sessionTtlSec(true), 10 * 24 * 3600);
+  config.setSetting('session_ttl_hours', '24');
+  config.setSetting('session_remember_days', '30');
+});
+
+test('sessions: list, revoke one, and revoke others', () => {
+  const auth = require('../src/web/auth');
+  const db = require('../src/db/schema');
+  db.prepare('INSERT INTO admin_users (username, pass_hash, role) VALUES (?, ?, ?)')
+    .run('t_sess', auth.hashPassword('password123'), 'admin');
+  const uid = db.prepare("SELECT id FROM admin_users WHERE username = 't_sess'").get().id;
+  const mk = (tok) => db.prepare(`INSERT INTO sessions (token, user_id, ip, user_agent, label, expires_at)
+    VALUES (?, ?, '1.1.1.1', 'curl/8', 'curl', datetime('now','+1 day'))`).run(tok, uid);
+  mk('sess_aaa_current'); mk('sess_bbb_other'); mk('sess_ccc_other');
+
+  let list = auth.listSessions(uid, 'sess_aaa_current');
+  assert.strictEqual(list.length, 3);
+  assert.ok(list.find(s => s.current)); // current session flagged
+
+  assert.strictEqual(auth.revokeSession(uid, 'sess_bbb_other'), true);
+  assert.strictEqual(auth.revokeSession(uid, 'nonexistent'), false);
+  const revoked = auth.listSessions(uid, 'sess_aaa_current').find(s => s.id === 'sess_bbb_oth');
+  assert.strictEqual(revoked.active, false);
+
+  const n = auth.revokeOtherSessions(uid, 'sess_aaa_current');
+  assert.strictEqual(n, 1); // only ccc remained active to revoke
+  const active = auth.listSessions(uid, 'sess_aaa_current').filter(s => s.active);
+  assert.strictEqual(active.length, 1);
+  assert.strictEqual(active[0].current, true);
+
+  db.prepare('DELETE FROM sessions WHERE user_id = ?').run(uid);
+  db.prepare("DELETE FROM admin_users WHERE username = 't_sess'").run();
+});
+
 test('maybeSummarize never runs with a negative excess (SQLite LIMIT trap)', async () => {
   const conv = require('../src/memory/conversations');
   config.setSetting('auto_summarize_threshold', '5');

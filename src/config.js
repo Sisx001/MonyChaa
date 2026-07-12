@@ -162,6 +162,13 @@ const SETTING_DEFAULTS = {
   // ---- Ops ----
   log_full_content: 'on',       // store full message content in logs (off = truncated)
   webhook_alert_url: '',        // POST alerts to this URL (Slack/Discord/generic)
+
+  // ---- Sessions & panel security ----
+  session_ttl_hours: '24',          // normal login lifetime (hours)
+  session_remember_days: '30',      // "remember me" lifetime (days)
+  session_idle_timeout_min: '0',    // auto-expire after N idle minutes (0 = off)
+  session_single: 'off',            // on = new login revokes this user's other sessions
+  session_bind_ip: 'off',           // on = a session is only valid from its origin IP
 };
 
 // API keys manageable from the admin panel (stored in DB, env is fallback).

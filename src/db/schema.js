@@ -311,6 +311,18 @@ db.exec('CREATE INDEX IF NOT EXISTS idx_contacts_assistant ON contacts(assistant
   if (!cols.includes('recurrence')) db.exec("ALTER TABLE scheduled_messages ADD COLUMN recurrence TEXT DEFAULT 'none'");
 }
 
+// Session upgrade: human-readable device label, remember-me flag, explicit
+// revocation reason, and rolling idle tracking. Additive so old rows survive.
+{
+  const cols = db.prepare('PRAGMA table_info(sessions)').all().map(c => c.name);
+  if (!cols.includes('label'))      db.exec("ALTER TABLE sessions ADD COLUMN label TEXT DEFAULT ''");
+  if (!cols.includes('remember'))   db.exec('ALTER TABLE sessions ADD COLUMN remember INTEGER DEFAULT 0');
+  if (!cols.includes('revoked'))    db.exec('ALTER TABLE sessions ADD COLUMN revoked INTEGER DEFAULT 0');
+  if (!cols.includes('revoked_at')) db.exec('ALTER TABLE sessions ADD COLUMN revoked_at TEXT');
+  if (!cols.includes('country'))    db.exec("ALTER TABLE sessions ADD COLUMN country TEXT DEFAULT ''");
+}
+db.exec('CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id, expires_at)');
+
 bindDb(db);
 
 module.exports = db;

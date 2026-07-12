@@ -4,9 +4,10 @@
 const crypto = require('crypto');
 const db = require('../db/schema');
 const logger = require('../logger');
+const config = require('../config');
 
 const COOKIE = 'sp_sess';
-const SESSION_TTL_SEC = 7 * 24 * 3600;
+const DEFAULT_TTL_SEC = 24 * 3600;
 const MAX_FAILS = 6;              // per IP within the window
 const LOCKOUT_WINDOW_SEC = 900;  // 15 minutes
 const BOOTSTRAP_ENV = process.env.ADMIN_PASSWORD || '';
@@ -80,25 +81,125 @@ function recentFails(ip) {
 }
 
 // ---- sessions ----
-function createSession(userId, req) {
+const num = (key, fallback) => {
+  const v = parseFloat(config.getSetting(key));
+  return Number.isFinite(v) ? v : fallback;
+};
+
+/** Turn a raw User-Agent into a short "Browser · OS" device label. */
+function deviceLabel(ua = '') {
+  const s = String(ua);
+  let browser =
+    /Edg\//.test(s) ? 'Edge' :
+    /OPR\/|Opera/.test(s) ? 'Opera' :
+    /Chrome\//.test(s) ? 'Chrome' :
+    /Firefox\//.test(s) ? 'Firefox' :
+    /Safari\//.test(s) ? 'Safari' :
+    /curl\//i.test(s) ? 'curl' :
+    /PostmanRuntime/i.test(s) ? 'Postman' : 'Unknown';
+  let os =
+    /Windows NT 10/.test(s) ? 'Windows' :
+    /Windows/.test(s) ? 'Windows' :
+    /iPhone|iPad|iOS/.test(s) ? 'iOS' :
+    /Android/.test(s) ? 'Android' :
+    /Mac OS X|Macintosh/.test(s) ? 'macOS' :
+    /Linux/.test(s) ? 'Linux' : '';
+  return os ? `${browser} · ${os}` : browser;
+}
+
+/** Lifetime (seconds) for a new session, honoring the remember-me flag. */
+function sessionTtlSec(remember) {
+  if (remember) return Math.max(1, num('session_remember_days', 30)) * 24 * 3600;
+  return Math.max(1, num('session_ttl_hours', 24)) * 3600;
+}
+
+function createSession(userId, req, remember = false) {
   const token = crypto.randomBytes(32).toString('hex');
-  db.prepare(`INSERT INTO sessions (token, user_id, ip, user_agent, expires_at)
-    VALUES (?, ?, ?, ?, datetime('now', ?))`)
-    .run(token, userId, clientIp(req), (req.headers['user-agent'] || '').slice(0, 200), `+${SESSION_TTL_SEC} seconds`);
+  const ip = clientIp(req);
+  const ttl = sessionTtlSec(remember);
+  db.prepare(`INSERT INTO sessions (token, user_id, ip, user_agent, label, remember, expires_at)
+    VALUES (?, ?, ?, ?, ?, ?, datetime('now', ?))`)
+    .run(token, userId, ip, (req.headers['user-agent'] || '').slice(0, 200),
+         deviceLabel(req.headers['user-agent']), remember ? 1 : 0, `+${ttl} seconds`);
+  // Single-session mode: kill the user's other live sessions.
+  if (config.getSetting('session_single') === 'on') {
+    db.prepare(`UPDATE sessions SET revoked = 1, revoked_at = datetime('now')
+      WHERE user_id = ? AND token != ? AND revoked = 0`).run(userId, token);
+  }
   return token;
 }
+
 function sessionUser(req) {
   const token = parseCookie(req, COOKIE);
   if (!token) return null;
-  const row = db.prepare(`SELECT s.token, s.user_id, u.username, u.role, u.enabled
+  const row = db.prepare(`SELECT s.token, s.user_id, s.ip, s.last_seen, s.revoked, u.username, u.role, u.enabled
     FROM sessions s JOIN admin_users u ON u.id = s.user_id
     WHERE s.token = ? AND s.expires_at > datetime('now')`).get(token);
-  if (!row || !row.enabled) return null;
+  if (!row || !row.enabled || row.revoked) return null;
+  // Optional idle timeout: expire sessions untouched for too long.
+  const idle = num('session_idle_timeout_min', 0);
+  if (idle > 0 && row.last_seen) {
+    const ageMs = Date.now() - Date.parse(row.last_seen.replace(' ', 'T') + 'Z');
+    if (Number.isFinite(ageMs) && ageMs > idle * 60_000) {
+      db.prepare("UPDATE sessions SET revoked = 1, revoked_at = datetime('now') WHERE token = ?").run(token);
+      return null;
+    }
+  }
+  // Optional IP binding: a stolen cookie is useless from a different address.
+  if (config.getSetting('session_bind_ip') === 'on' && row.ip && row.ip !== clientIp(req)) {
+    return null;
+  }
   db.prepare("UPDATE sessions SET last_seen = datetime('now') WHERE token = ?").run(token);
   return { id: row.user_id, username: row.username, role: row.role, token };
 }
+
 function destroySession(token) {
   if (token) db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
+}
+
+// ---- session management (panel-facing) ----
+function listSessions(userId, currentToken) {
+  const rows = db.prepare(`SELECT token, ip, country, user_agent, label, remember, revoked,
+      created_at, last_seen, expires_at
+    FROM sessions WHERE user_id = ? ORDER BY last_seen DESC`).all(userId);
+  const now = Date.now();
+  return rows.map(r => {
+    const exp = Date.parse((r.expires_at || '').replace(' ', 'T') + 'Z');
+    const expired = Number.isFinite(exp) && exp < now;
+    return {
+      id: r.token.slice(0, 12),          // short, non-sensitive handle
+      ip: r.ip, country: r.country || '',
+      label: r.label || deviceLabel(r.user_agent),
+      remember: !!r.remember,
+      current: r.token === currentToken,
+      active: !r.revoked && !expired,
+      revoked: !!r.revoked,
+      created_at: r.created_at, last_seen: r.last_seen, expires_at: r.expires_at,
+    };
+  });
+}
+
+/** Revoke one session of a user by its short id (first 12 chars of token). */
+function revokeSession(userId, shortId) {
+  const row = db.prepare('SELECT token FROM sessions WHERE user_id = ? AND token LIKE ?')
+    .get(userId, shortId + '%');
+  if (!row) return false;
+  db.prepare("UPDATE sessions SET revoked = 1, revoked_at = datetime('now') WHERE token = ?").run(row.token);
+  return true;
+}
+
+/** Revoke every session for a user except (optionally) the one in use. */
+function revokeOtherSessions(userId, keepToken) {
+  const info = db.prepare(`UPDATE sessions SET revoked = 1, revoked_at = datetime('now')
+    WHERE user_id = ? AND revoked = 0 AND token != ?`).run(userId, keepToken || '');
+  return info.changes;
+}
+
+/** Housekeeping: drop revoked/expired rows older than a day. */
+function pruneSessions() {
+  return db.prepare(`DELETE FROM sessions
+    WHERE (revoked = 1 OR expires_at < datetime('now'))
+      AND COALESCE(revoked_at, expires_at) < datetime('now', '-1 day')`).run().changes;
 }
 
 function cookieHeader(token, maxAge) {
@@ -163,9 +264,10 @@ function loginHandler(req, res) {
   }
   record(true);
   db.prepare("UPDATE admin_users SET last_login = datetime('now'), last_ip = ? WHERE id = ?").run(ip, user.id);
-  const token = createSession(user.id, req);
-  res.setHeader('Set-Cookie', cookieHeader(token, SESSION_TTL_SEC));
-  audit(req, 'login', `role=${user.role}`, user);
+  const remember = Boolean(req.body?.remember);
+  const token = createSession(user.id, req, remember);
+  res.setHeader('Set-Cookie', cookieHeader(token, sessionTtlSec(remember)));
+  audit(req, 'login', `role=${user.role}${remember ? ' remember' : ''}`, user);
   res.json({ ok: true, user: { username: user.username, role: user.role } });
 }
 
@@ -189,5 +291,6 @@ function statusHandler(req, res) {
 module.exports = {
   middleware, loginHandler, logoutHandler, statusHandler,
   enabled, hashPassword, verifyPassword, clientIp, audit, sessionUser,
-  isBanned, recentFails,
+  isBanned, recentFails, deviceLabel, sessionTtlSec,
+  listSessions, revokeSession, revokeOtherSessions, pruneSessions,
 };
