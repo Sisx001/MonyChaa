@@ -759,6 +759,27 @@ function openContact(c) {
   $('#c-history-view').style.display = 'none';
   $('#contact-delete').style.display = c ? '' : 'none';
   $('#contact-modal').style.display = 'flex';
+  loadContactStats(c);
+}
+
+async function loadContactStats(c) {
+  const box = $('#c-stats');
+  if (!c) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  try {
+    const s = await api(`/contacts/${c.chat_id}/stats?assistant_id=${contactAssistant || 0}`);
+    if (!s.total) { box.style.display = 'none'; return; }
+    const ago = t => t ? fmtTime(t) : '—';
+    const mins = s.avgResponseMs ? (s.avgResponseMs / 1000).toFixed(1) + 's' : '—';
+    const tiles = [
+      ['Messages', s.total, `${s.incoming} in · ${s.outgoing} out`],
+      ['Response rate', s.responseRate + '%', `avg ${mins}`],
+      ['Cadence', s.msgsPerDay + '/day', `${s.activeDays} day span`],
+      ['Last seen', ago(s.lastSeen), s.mood ? `usually ${s.mood}` : `since ${ago(s.firstSeen)}`],
+    ];
+    box.innerHTML = tiles.map(([l, v, sub]) =>
+      `<div class="stat"><div class="label">${esc(l)}</div><div class="value">${esc(String(v))}</div><div class="sub">${esc(sub)}</div></div>`).join('');
+    box.style.display = '';
+  } catch { box.style.display = 'none'; }
 }
 $('#contact-add').addEventListener('click', () => openContact(null));
 $('#contact-modal-close').addEventListener('click', () => $('#contact-modal').style.display = 'none');

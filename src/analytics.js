@@ -101,6 +101,30 @@ function moodBreakdown(limit = 300) {
   };
 }
 
+/** Interaction stats for one contact: volumes, first/last seen, response rate. */
+function contactStats(chatId, assistantId = 0) {
+  const row = db.prepare(`SELECT
+      COUNT(*) total,
+      SUM(CASE WHEN direction = 'incoming' THEN 1 ELSE 0 END) incoming,
+      SUM(CASE WHEN direction = 'outgoing' THEN 1 ELSE 0 END) outgoing,
+      MIN(created_at) firstSeen,
+      MAX(created_at) lastSeen,
+      AVG(CASE WHEN direction = 'outgoing' AND response_time_ms > 0 THEN response_time_ms END) avgResponseMs
+    FROM messages_log WHERE chat_id = ? AND assistant_id = ?`).get(chatId, assistantId);
+  const incoming = row.incoming || 0, outgoing = row.outgoing || 0;
+  const days = row.firstSeen
+    ? Math.max(1, Math.round((Date.parse(row.lastSeen + 'Z') - Date.parse(row.firstSeen + 'Z')) / 86400000) + 1)
+    : 0;
+  return {
+    total: row.total || 0, incoming, outgoing,
+    firstSeen: row.firstSeen || null, lastSeen: row.lastSeen || null,
+    responseRate: incoming ? Math.min(100, Math.round((outgoing / incoming) * 100)) : 0,
+    avgResponseMs: Math.round(row.avgResponseMs || 0),
+    activeDays: days,
+    msgsPerDay: days ? Math.round(((row.total || 0) / days) * 10) / 10 : 0,
+  };
+}
+
 /** A single contact's dominant mood over their recent incoming messages. */
 function contactMoodProfile(chatId, assistantId = 0, limit = 40) {
   const { detect } = require('./bot/mood');
@@ -137,4 +161,4 @@ function dailySummaryText() {
   ].join('\n');
 }
 
-module.exports = { stats, dailySummaryText, moodBreakdown, contactMoodProfile };
+module.exports = { stats, dailySummaryText, moodBreakdown, contactMoodProfile, contactStats };

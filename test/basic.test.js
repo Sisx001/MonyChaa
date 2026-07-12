@@ -188,6 +188,24 @@ test('system diagnostics: away-mode check flags and clear_away fixes it', () => 
   assert.strictEqual(sys.diagnostics().find(c => c.name === 'Away mode').status, 'ok');
 });
 
+test('analytics.contactStats computes volumes, response rate and cadence', () => {
+  const analytics = require('../src/analytics');
+  const db = require('../src/db/schema');
+  const ins = db.prepare("INSERT INTO messages_log (chat_id, assistant_id, direction, content, response_time_ms) VALUES (?, 0, ?, ?, ?)");
+  ins.run(313131, 'incoming', 'hi', 0);
+  ins.run(313131, 'outgoing', 'hello', 1000);
+  ins.run(313131, 'incoming', 'you there', 0);
+  ins.run(313131, 'outgoing', 'yep', 3000);
+  const s = analytics.contactStats(313131, 0);
+  assert.strictEqual(s.total, 4);
+  assert.strictEqual(s.incoming, 2);
+  assert.strictEqual(s.outgoing, 2);
+  assert.strictEqual(s.responseRate, 100);
+  assert.strictEqual(s.avgResponseMs, 2000);
+  assert.ok(s.activeDays >= 1);
+  db.prepare('DELETE FROM messages_log WHERE chat_id = 313131').run();
+});
+
 test('analytics.contactMoodProfile finds a dominant mood only when it is a pattern', () => {
   const analytics = require('../src/analytics');
   const db = require('../src/db/schema');
