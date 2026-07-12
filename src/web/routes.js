@@ -27,6 +27,11 @@ router.get('/stats', wrap((req, res) => {
   res.json(s);
 }));
 
+// Mood breakdown of recent incoming messages (for the monitoring dashboard).
+router.get('/analytics/mood', wrap((req, res) => {
+  res.json(analytics.moodBreakdown());
+}));
+
 // ---------- Settings ----------
 router.get('/settings', wrap((req, res) => res.json(config.allSettings())));
 

@@ -80,6 +80,27 @@ function stats() {
   };
 }
 
+/** Classify recent incoming messages by detected mood (last N, default 300). */
+function moodBreakdown(limit = 300) {
+  const { detect } = require('./bot/mood');
+  const rows = db.prepare(
+    "SELECT content FROM messages_log WHERE direction = 'incoming' AND content IS NOT NULL AND content != '' ORDER BY id DESC LIMIT ?"
+  ).all(limit);
+  const counts = { upset: 0, sad: 0, anxious: 0, excited: 0, neutral: 0 };
+  for (const r of rows) {
+    const { mood } = detect(r.content);
+    counts[mood] = (counts[mood] || 0) + 1;
+  }
+  const total = rows.length;
+  const nonNeutral = total - counts.neutral;
+  return {
+    total,
+    counts,
+    // Share of messages carrying a readable emotional signal.
+    expressiveness: total ? Math.round((nonNeutral / total) * 100) : 0,
+  };
+}
+
 function dailySummaryText() {
   const s = stats();
   const newContacts = db.prepare("SELECT COUNT(*) c FROM contacts WHERE created_at >= date('now')").get().c;
@@ -94,4 +115,4 @@ function dailySummaryText() {
   ].join('\n');
 }
 
-module.exports = { stats, dailySummaryText };
+module.exports = { stats, dailySummaryText, moodBreakdown };

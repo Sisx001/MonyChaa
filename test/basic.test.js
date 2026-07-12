@@ -102,6 +102,19 @@ test('timeofday: hours map to sensible periods with hints', () => {
   assert.ok(Number.isInteger(h) && h >= 0 && h < 24);
 });
 
+test('analytics.moodBreakdown classifies incoming messages', () => {
+  const analytics = require('../src/analytics');
+  const db = require('../src/db/schema');
+  const ins = db.prepare("INSERT INTO messages_log (chat_id, direction, content, assistant_id) VALUES (?, 'incoming', ?, 0)");
+  const samples = ['this is ridiculous!!', 'i love this, amazing!', 'what time is it', 'so nervous about tomorrow', 'i feel down :('];
+  samples.forEach(t => ins.run(987654, t));
+  const b = analytics.moodBreakdown();
+  assert.ok(b.total >= 5);
+  assert.ok(b.counts.upset >= 1 && b.counts.excited >= 1 && b.counts.anxious >= 1 && b.counts.sad >= 1);
+  assert.ok(b.expressiveness >= 0 && b.expressiveness <= 100);
+  db.prepare('DELETE FROM messages_log WHERE chat_id = 987654').run();
+});
+
 test('replyPolicyBlock: passes normal text, blocks blacklisted words', () => {
   const { replyPolicyBlock } = require('../src/bot/reply');
   const config = require('../src/config');

@@ -1414,6 +1414,31 @@ function meterBar(label, pct, danger) {
     <div class="meter-track"><div class="meter-fill" style="width:${Math.min(100, pct)}%;background:${color}"></div></div>
   </div>`;
 }
+const MOOD_META = {
+  upset:   { label: 'Upset',   color: '#ef4444' },
+  sad:     { label: 'Sad',     color: '#3b82f6' },
+  anxious: { label: 'Anxious', color: '#f59e0b' },
+  excited: { label: 'Excited', color: '#22c55e' },
+  neutral: { label: 'Neutral', color: '#8b95a5' },
+};
+async function loadMoodMix() {
+  const d = await api('/analytics/mood');
+  $('#mood-expressiveness').textContent = d.total
+    ? `${d.expressiveness}% expressive · ${d.total} messages` : 'no messages yet';
+  if (!d.total) { $('#mood-bars').innerHTML = '<p class="hint">No incoming messages to analyze yet.</p>'; return; }
+  $('#mood-bars').innerHTML = Object.entries(MOOD_META).map(([k, meta]) => {
+    const n = d.counts[k] || 0;
+    const pct = Math.round((n / d.total) * 100);
+    return `<div style="display:flex;align-items:center;gap:10px;margin:6px 0">
+      <span style="width:70px;font-size:.85em;color:var(--text-dim)">${meta.label}</span>
+      <div style="flex:1;height:10px;border-radius:6px;background:rgba(127,127,127,.15);overflow:hidden">
+        <div style="width:${pct}%;height:100%;background:${meta.color};border-radius:6px;transition:width .4s"></div>
+      </div>
+      <span style="width:64px;text-align:right;font-size:.82em;color:var(--text-dim)">${n} · ${pct}%</span>
+    </div>`;
+  }).join('');
+}
+
 async function loadSystem() {
   const { metrics: m, diagnostics: diag } = await api('/system');
   const fmtUp = s => s > 86400 ? `${Math.floor(s/86400)}d ${Math.floor(s%86400/3600)}h` : s > 3600 ? `${Math.floor(s/3600)}h ${Math.floor(s%3600/60)}m` : `${Math.floor(s/60)}m`;
@@ -1450,6 +1475,8 @@ async function loadSystem() {
     ['Node', m.node], ['Platform', m.platform], ['Arch', m.arch], ['Hostname', m.hostname],
     ['CPU', m.cpu.model], ['Host uptime', fmtUp(m.hostUptimeSec)], ['Total memory', m.memory.systemTotalGB + 'GB'],
   ].map(([k, v]) => `<div class="kv"><span class="kv-k">${esc(k)}</span><span class="kv-v">${esc(v)}</span></div>`).join('');
+
+  loadMoodMix().catch(() => {});
 
   clearTimeout(sysTimer);
   sysTimer = setTimeout(() => { if ($('#tab-system').classList.contains('active')) loadSystem().catch(() => {}); }, 4000);

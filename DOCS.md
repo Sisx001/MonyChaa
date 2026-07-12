@@ -128,6 +128,8 @@ Owner commands (DM the bot): `/status`, `/away`, `/pause`, `/summary`, `/id`, `/
 
 **Monitoring tab** shows live CPU load, system memory, disk, DB size, process/host uptime, and a health-diagnostics panel. Each failing check has a **Fix** button; **Auto-fix all** runs them together. Actions: reset provider health, clear old errors, requeue overdue scheduled messages, clear expired sessions, VACUUM the database. **Restart** exits cleanly so your process manager (PM2/Docker/systemd) respawns.
 
+**Sender mood mix** — a bar breakdown of how the last few hundred incoming messages read emotionally (upset / sad / anxious / excited / neutral), plus an *expressiveness* figure (the share carrying a readable emotional signal). It uses the same mood detector that steers replies, so it doubles as a live check that mood adaptation is seeing what you'd expect.
+
 ---
 
 ## 10. Deployment
