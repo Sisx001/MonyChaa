@@ -86,7 +86,7 @@ function moodBreakdown(limit = 300) {
   const rows = db.prepare(
     "SELECT content FROM messages_log WHERE direction = 'incoming' AND content IS NOT NULL AND content != '' ORDER BY id DESC LIMIT ?"
   ).all(limit);
-  const counts = { upset: 0, sad: 0, anxious: 0, excited: 0, neutral: 0 };
+  const counts = { upset: 0, sad: 0, anxious: 0, grateful: 0, confused: 0, excited: 0, neutral: 0 };
   for (const r of rows) {
     const { mood } = detect(r.content);
     counts[mood] = (counts[mood] || 0) + 1;

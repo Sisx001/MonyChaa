@@ -81,6 +81,8 @@ test('mood: detects sentiment and returns a tone hint', () => {
   assert.strictEqual(detect("i'm feeling really down today :(").mood, 'sad');
   assert.strictEqual(detect("i'm so nervous about tomorrow").mood, 'anxious');
   assert.strictEqual(detect('this is amazing, i love it!').mood, 'excited');
+  assert.strictEqual(detect('thank you so much, this means a lot').mood, 'grateful');
+  assert.strictEqual(detect("i'm confused, what do you mean?").mood, 'confused');
   const neutral = detect('what time is the meeting');
   assert.strictEqual(neutral.mood, 'neutral');
   assert.strictEqual(neutral.hint, '');

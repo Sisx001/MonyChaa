@@ -4,13 +4,17 @@
 // Pure function → deterministic and testable.
 
 const SIGNALS = [
-  { mood: 'upset', re: /\b(angry|furious|pissed|annoyed|ridiculous|unacceptable|useless|terrible|awful|hate|wtf|screw|frustrat\w*)\b/i,
+  { mood: 'upset', re: /\b(angry|furious|pissed|annoyed|ridiculous|unacceptable|useless|terrible|awful|horrible|hate|wtf|screw|frustrat\w*|fed up|sick of|disgust\w*|outrage\w*)\b|😡|🤬/i,
     hint: 'The sender seems upset. Stay calm, acknowledge their frustration first, don\'t get defensive, and keep it short and sincere.' },
-  { mood: 'sad', re: /\b(sad|down|depress\w*|unhappy|miserable|crying|heartbroken|lonely|hopeless|exhausted|burnt? out)\b|:\(/i,
+  { mood: 'sad', re: /\b(sad|down|depress\w*|unhappy|miserable|crying|heartbroken|lonely|hopeless|exhausted|burnt? out|devastated|gutted|grieving)\b|:\(|😢|😭|💔/i,
     hint: 'The sender seems down. Be warm, gentle and validating — listen first, don\'t rush to fix or cheerlead.' },
-  { mood: 'anxious', re: /\b(worried|worry|nervous|anxious|scared|afraid|stress\w*|panic\w*|overwhelmed)\b/i,
+  { mood: 'anxious', re: /\b(worried|worry|nervous|anxious|scared|afraid|stress\w*|panic\w*|overwhelmed|dreading|on edge|freaking out)\b|😰|😨/i,
     hint: 'The sender seems anxious. Be reassuring, clear and steady; break things into simple next steps.' },
-  { mood: 'excited', re: /\b(excited|amazing|awesome|incredible|can'?t wait|so happy|yay+|woo+|congrats|congratulations|love (it|this))\b|🎉|😍|🥳/i,
+  { mood: 'grateful', re: /\b(thank you|thanks|thx|ty|grateful|appreciate|appreciated|means a lot|life ?saver|you'?re the best|much appreciated)\b|🙏/i,
+    hint: 'The sender is grateful. Receive it warmly and briefly — a gracious, human acknowledgement, not a formal one.' },
+  { mood: 'confused', re: /\b(confused|confusing|don'?t (get|understand)|not sure what|no idea|makes no sense|what do you mean|lost|unclear|huh\??)\b|🤔|😕/i,
+    hint: 'The sender seems confused. Slow down, clarify one thing at a time in plain words, and check you\'ve understood their question.' },
+  { mood: 'excited', re: /\b(excited|amazing|awesome|incredible|can'?t wait|so happy|yay+|woo+|congrats|congratulations|love (it|this)|stoked|pumped|thrilled)\b|🎉|😍|🥳/i,
     hint: 'The sender is excited. Match their energy and celebrate with them before anything else.' },
 ];
 

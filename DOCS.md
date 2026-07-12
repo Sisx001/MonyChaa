@@ -49,13 +49,13 @@ Incoming DMs are now answered as you.
 | **Logs** | Messages / errors / events / token usage, searchable, CSV export |
 | **Monitoring** | Real-time CPU/memory/disk, health diagnostics, one-click auto-fix, restart |
 | **Security** | Admin accounts, roles, sessions, IP bans, login attempts, audit log |
-| **Settings** | ~70 wired options across 11 sections |
+| **Settings** | ~100 wired options across 12+ sections |
 
 ---
 
 ## 4. Characters & personas
 
-**System Prompt → Preloaded characters.** One click applies a complete persona (prompt + emoji policy + reply style + temperature). Your current prompt is auto-saved as a version first. Twelve are built in: Professional, Bestie, Charmer, Minimalist, Executive Assistant, Support Hero, Closer, Zen, Gen-Z, Diplomat, Coach, Butler. Edit freely afterward.
+**System Prompt → Preloaded characters.** One click applies a complete persona (prompt + emoji policy + reply style + temperature). Your current prompt is auto-saved as a version first. 29 are built in — Professional, Bestie, Charmer, Minimalist, Executive Assistant, Support Hero, Closer, Zen, Gen-Z, Diplomat, Coach, Butler, Comedian, Engineer, Listener, Hype, Stoic, Storyteller, Negotiator, Mentor, Concierge, Scientist, Chef, Detective, Poet, Trainer, Peacemaker, Hacker, Grandparent. Edit freely afterward.
 
 ---
 
@@ -96,7 +96,7 @@ Add keys two ways: `.env`, or **Settings → API keys** (stored in DB, override 
   - **Text like a human (prompt)** — appends directives telling the model to use contractions, vary sentence length, keep punctuation casual, and never mention being an AI.
   - **Output imperfections (code)** — `subtle`/`natural` roughening applied after generation: occasionally drops a trailing period or lowercases a short casual line, relaxes spaced ellipses. Never touches links, questions, or exclamations.
   - **Ban assistant filler** — strips tell-tale phrases ("I hope this helps", "as an AI", "let me know if you need anything else") at the prompt level.
-  - **Mood adaptation** — reads the sender's apparent mood from their message (upset / sad / anxious / excited) and injects a matching tone hint so the reply meets them where they are — acknowledging frustration, being gentle when they're down, or matching their excitement.
+  - **Mood adaptation** — reads the sender's apparent mood from their message (upset / sad / anxious / grateful / confused / excited) and injects a matching tone hint so the reply meets them where they are — acknowledging frustration, being gentle when they're down, receiving thanks warmly, clarifying when they're lost, or matching their excitement.
   - **Time-of-day awareness** — adapts reply energy to the sender's local time (from your timezone): low-key late at night, a little fresh in the morning, relaxed in the evening.
   - **Behavior inspector** (Chat tab) — type any sample message and see exactly which human-layer signals fire (detected mood, local time period, and the active directives) with no model call. Use it to tune the settings above before they go live.
   - **Dry run** (Chat tab) — the "Dry run" button assembles and shows the exact system prompt that would be sent for a message (with mood, time, skills and contact profile baked in), plus the offline verdict: whether an auto-responder or skill triggers, whether the reply policy would block it, and whether it would reach the LLM at all. Still no model call — it's the fastest way to see *why* the bot would respond the way it does.
@@ -130,7 +130,7 @@ Owner commands (DM the bot): `/status`, `/away`, `/pause`, `/summary`, `/id`, `/
 
 Config-sanity checks run alongside the infra ones: **Away mode** warns (with a one-click *Turn off*) when auto-replies are silently paused, and **Mood detection** warns when mood adaptation is on but a healthy sample of recent messages shows 0% emotional signal — a hint the language mix or detector coverage needs a look. (Away mode is deliberately left out of *Auto-fix all* — it's your intent to toggle, not a fault to sweep.)
 
-**Sender mood mix** — a bar breakdown of how the last few hundred incoming messages read emotionally (upset / sad / anxious / excited / neutral), plus an *expressiveness* figure (the share carrying a readable emotional signal). It uses the same mood detector that steers replies, so it doubles as a live check that mood adaptation is seeing what you'd expect.
+**Sender mood mix** — a bar breakdown of how the last few hundred incoming messages read emotionally (upset / sad / anxious / grateful / confused / excited / neutral), plus an *expressiveness* figure (the share carrying a readable emotional signal). It uses the same mood detector that steers replies, so it doubles as a live check that mood adaptation is seeing what you'd expect.
 
 ---
 

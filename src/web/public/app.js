@@ -1415,11 +1415,13 @@ function meterBar(label, pct, danger) {
   </div>`;
 }
 const MOOD_META = {
-  upset:   { label: 'Upset',   color: '#ef4444' },
-  sad:     { label: 'Sad',     color: '#3b82f6' },
-  anxious: { label: 'Anxious', color: '#f59e0b' },
-  excited: { label: 'Excited', color: '#22c55e' },
-  neutral: { label: 'Neutral', color: '#8b95a5' },
+  upset:    { label: 'Upset',    color: '#ef4444' },
+  sad:      { label: 'Sad',      color: '#3b82f6' },
+  anxious:  { label: 'Anxious',  color: '#f59e0b' },
+  grateful: { label: 'Grateful', color: '#14b8a6' },
+  confused: { label: 'Confused', color: '#a855f7' },
+  excited:  { label: 'Excited',  color: '#22c55e' },
+  neutral:  { label: 'Neutral',  color: '#8b95a5' },
 };
 async function loadMoodMix() {
   const d = await api('/analytics/mood');
