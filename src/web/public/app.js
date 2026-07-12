@@ -1172,6 +1172,7 @@ async function runBehaviorInspector() {
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">${chips}</div>
       <div><b>Mood:</b> <span class="badge badge-${b.mood === 'neutral' ? 'gray' : 'green'}">${esc(b.mood)}</span>${b.moodHint ? ` — ${esc(b.moodHint)}` : ''}</div>
       <div style="margin-top:4px"><b>Intent:</b> <span class="badge badge-blue">${esc(b.intent || 'unknown')}</span>
+        ${b.expectsAnswer ? `<span class="badge badge-yellow" style="margin-left:8px" title="This message expects a reply">needs answer${b.questionCount > 1 ? ` ×${b.questionCount}` : ''}</span>` : ''}
         <b style="margin-left:10px">Urgency:</b> <span class="badge badge-${b.urgencyLevel === 'high' ? 'red' : b.urgencyLevel === 'medium' ? 'yellow' : 'gray'}">${esc(b.urgencyLevel || 'low')} · ${b.urgency ?? 0}</span></div>
       <div style="margin-top:4px"><b>Language:</b> <span class="badge badge-blue">${esc(b.language || 'Unknown')}</span>${b.languageCode && b.languageCode !== 'und' ? ` <span class="hint">${esc(b.languageCode)}</span>` : ''}</div>
       <div style="margin-top:4px"><b>Local time:</b> <span class="badge badge-gray">${esc(b.period)}</span> <span class="hint">(${esc(b.timezone)})</span>${b.periodHint ? ` — ${esc(b.periodHint)}` : ''}</div>

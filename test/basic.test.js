@@ -91,6 +91,16 @@ test('mood: detects sentiment and returns a tone hint', () => {
   assert.strictEqual(detect('').mood, 'neutral');
 });
 
+test('question: detects explicit and implicit questions', () => {
+  const { detect } = require('../src/bot/question');
+  assert.strictEqual(detect('what time do you open?').isQuestion, true);
+  assert.strictEqual(detect('let me know your availability').isQuestion, true); // implicit
+  assert.strictEqual(detect('wondering if you are free tomorrow').isQuestion, true);
+  assert.strictEqual(detect('the meeting is at 3pm').isQuestion, false);
+  assert.strictEqual(detect('how much does it cost and when can you deliver?').count, 1);
+  assert.strictEqual(detect('').expectsAnswer, false);
+});
+
 test('quickreplies: suggests intent-appropriate candidates, urgent leads fast', () => {
   const { suggest } = require('../src/bot/quickreplies');
   const complaint = suggest('this is broken and terrible');

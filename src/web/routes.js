@@ -175,6 +175,7 @@ router.post('/behavior/preview', wrap((req, res) => {
   const intent = require('../bot/intent').classify(message);
   const urgency = require('../bot/urgency').score(message);
   const quick = require('../bot/quickreplies').suggest(message);
+  const question = require('../bot/question').detect(message);
   const tod = require('../bot/timeofday');
   const tz = config.getSetting('timezone') || 'UTC';
   const period = tod.periodFor(tod.hourIn(tz));
@@ -191,6 +192,8 @@ router.post('/behavior/preview', wrap((req, res) => {
     language: lang.name,
     languageCode: lang.code,
     intent: intent.intent,
+    expectsAnswer: question.expectsAnswer,
+    questionCount: question.count,
     urgency: urgency.score,
     urgencyLevel: urgency.level,
     suggestions: quick.suggestions,

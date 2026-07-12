@@ -16,7 +16,9 @@ Make the bot understand *what kind* of message it's answering, and answer smarte
 - ✅ 1.3 **Urgency scoring** — 0–100 from keywords, punctuation and shouting; shown in the inspector.
 - ✅ 1.4 **Adaptive reply length** — target length scales to the incoming message's size (setting + prompt-integrated).
 - ✅ 1.5 **Quick-reply suggestions** — offline intent-driven candidate replies; clickable in the inspector (drop into composer).
-- ⬜ 1.6 **Question detector** — flag when a message actually asks something needing an answer.
+- ✅ 1.6 **Question detector** — flags explicit + implicit questions and whether a reply is expected; shown in the inspector.
+
+**Phase 1 complete** ✅ — all six reply-intelligence signals ship in the Behavior inspector.
 
 ## Phase 2 — Contact & Relationship CRM
 Turn the contacts list into a lightweight CRM.
