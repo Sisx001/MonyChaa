@@ -101,6 +101,28 @@ function moodBreakdown(limit = 300) {
   };
 }
 
+/** A single contact's dominant mood over their recent incoming messages. */
+function contactMoodProfile(chatId, assistantId = 0, limit = 40) {
+  const { detect } = require('./bot/mood');
+  const rows = db.prepare(
+    "SELECT content FROM messages_log WHERE chat_id = ? AND assistant_id = ? AND direction = 'incoming' AND content IS NOT NULL AND content != '' ORDER BY id DESC LIMIT ?"
+  ).all(chatId, assistantId, limit);
+  const counts = {};
+  for (const r of rows) {
+    const { mood } = detect(r.content);
+    counts[mood] = (counts[mood] || 0) + 1;
+  }
+  // Dominant *non-neutral* mood, only if it's a real pattern (>=3 and >=30%).
+  let dominant = null, best = 0;
+  const total = rows.length;
+  for (const [mood, n] of Object.entries(counts)) {
+    if (mood === 'neutral') continue;
+    if (n > best) { best = n; dominant = mood; }
+  }
+  if (!dominant || best < 3 || best / (total || 1) < 0.3) dominant = null;
+  return { total, counts, dominant };
+}
+
 function dailySummaryText() {
   const s = stats();
   const newContacts = db.prepare("SELECT COUNT(*) c FROM contacts WHERE created_at >= date('now')").get().c;
@@ -115,4 +137,4 @@ function dailySummaryText() {
   ].join('\n');
 }
 
-module.exports = { stats, dailySummaryText, moodBreakdown };
+module.exports = { stats, dailySummaryText, moodBreakdown, contactMoodProfile };

@@ -116,6 +116,21 @@ test('system diagnostics: away-mode check flags and clear_away fixes it', () => 
   assert.strictEqual(sys.diagnostics().find(c => c.name === 'Away mode').status, 'ok');
 });
 
+test('analytics.contactMoodProfile finds a dominant mood only when it is a pattern', () => {
+  const analytics = require('../src/analytics');
+  const db = require('../src/db/schema');
+  const ins = db.prepare("INSERT INTO messages_log (chat_id, assistant_id, direction, content) VALUES (?, 0, 'incoming', ?)");
+  // 4 anxious + 1 neutral over the same contact → clear pattern.
+  ['im so stressed', 'this is stressful', 'feeling anxious', 'worried again', 'hi'].forEach(t => ins.run(778899, t));
+  let p = analytics.contactMoodProfile(778899, 0);
+  assert.strictEqual(p.dominant, 'anxious');
+  // A lone signal among neutrals is not a pattern.
+  ['ok', 'sure', 'sounds good', 'thanks'].forEach(t => ins.run(667788, t));
+  p = analytics.contactMoodProfile(667788, 0);
+  assert.strictEqual(p.dominant, null);
+  db.prepare('DELETE FROM messages_log WHERE chat_id IN (778899, 667788)').run();
+});
+
 test('analytics.moodBreakdown classifies incoming messages', () => {
   const analytics = require('../src/analytics');
   const db = require('../src/db/schema');

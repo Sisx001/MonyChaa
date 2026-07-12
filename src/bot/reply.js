@@ -90,6 +90,21 @@ function buildSystemPrompt(contact, extraContext, promptOverride = null, S = nul
     if (contact.learned_tone) {
       prompt += `\n\nExamples of how I actually talk to this person (match this style exactly):\n${contact.learned_tone.slice(0, 3000)}`;
     }
+    // Standing emotional baseline: how this person usually reaches out.
+    if (get('mood_adaptation') === 'on' && contact.chat_id) {
+      try {
+        const { dominant } = require('../analytics').contactMoodProfile(contact.chat_id, contact.assistant_id || 0);
+        const BASE = {
+          upset: 'This person often reaches out frustrated — lead with patience.',
+          sad: 'This person often reaches out low — be gentle and warm with them.',
+          anxious: 'This person often reaches out anxious — be reassuring and clear.',
+          grateful: 'This person is often warm and appreciative — match that warmth.',
+          confused: 'This person often needs things spelled out — be extra clear.',
+          excited: 'This person is usually upbeat — meet their energy.',
+        };
+        if (dominant && BASE[dominant]) prompt += `\n${BASE[dominant]}`;
+      } catch { /* baseline is best-effort */ }
+    }
   }
 
   const lang = get('language');
