@@ -930,6 +930,17 @@
     <label class="full">Custom system prompt override (empty = use global)
       <textarea id="c-custom_prompt" rows="3"></textarea>
     </label>
+    <details class="full" id="c-dates-wrap">
+      <summary>Important dates — birthdays, anniversaries…</summary>
+      <div id="c-dates-list" style="margin:8px 0"></div>
+      <div class="input-row">
+        <input id="cd-label" placeholder="Birthday" style="flex:1">
+        <input id="cd-month" type="number" min="1" max="12" placeholder="MM" style="max-width:70px">
+        <input id="cd-day" type="number" min="1" max="31" placeholder="DD" style="max-width:70px">
+        <input id="cd-year" type="number" placeholder="YYYY (opt)" style="max-width:110px">
+        <button class="btn" id="cd-add"><svg class="ic ic-sm"><use href="#i-plus"/></svg> Add</button>
+      </div>
+    </details>
     <details class="full">
       <summary>Relationship learning — paste a real chat</summary>
       <textarea id="c-transcript" rows="5" placeholder="Paste a real conversation with this person. The AI learns how you talk to them."></textarea>

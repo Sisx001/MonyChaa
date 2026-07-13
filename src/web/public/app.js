@@ -760,7 +760,35 @@ function openContact(c) {
   $('#contact-delete').style.display = c ? '' : 'none';
   $('#contact-modal').style.display = 'flex';
   loadContactStats(c);
+  $('#c-dates-wrap').style.display = c ? '' : 'none';
+  if (c) loadContactDates().catch(() => {});
 }
+
+async function loadContactDates() {
+  const rows = await api(`/contacts/${editingChatId}/dates?assistant_id=${contactAssistant}`);
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  $('#c-dates-list').innerHTML = rows.length ? rows.map(d => `
+    <div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+      <span class="badge badge-blue">${MONTHS[d.month - 1]} ${d.day}${d.year ? ', ' + d.year : ''}</span>
+      <span style="flex:1">${esc(d.label)}</span>
+      <button class="btn btn-sm btn-danger" data-cd-del="${d.id}"><svg class="ic ic-sm"><use href="#i-trash"/></svg></button>
+    </div>`).join('') : '<p class="hint">No dates saved.</p>';
+  $$('[data-cd-del]').forEach(b => b.addEventListener('click', async () => {
+    await api('/dates/' + b.dataset.cdDel, { method: 'DELETE' });
+    loadContactDates();
+  }));
+}
+$('#cd-add').addEventListener('click', async () => {
+  if (!editingChatId) return;
+  try {
+    await api(`/contacts/${editingChatId}/dates?assistant_id=${contactAssistant}`, {
+      method: 'POST',
+      body: { label: $('#cd-label').value, month: $('#cd-month').value, day: $('#cd-day').value, year: $('#cd-year').value || null },
+    });
+    $('#cd-label').value = ''; $('#cd-month').value = ''; $('#cd-day').value = ''; $('#cd-year').value = '';
+    toast('Date saved'); loadContactDates();
+  } catch (e) { toast(e.message, false); }
+});
 
 async function loadContactStats(c) {
   const box = $('#c-stats');

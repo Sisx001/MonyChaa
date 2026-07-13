@@ -206,6 +206,23 @@ test('analytics.contactStats computes volumes, response rate and cadence', () =>
   db.prepare('DELETE FROM messages_log WHERE chat_id = 313131').run();
 });
 
+test('dates: add/list/remove, year-wrap daysUntil, upcoming window', () => {
+  const dates = require('../src/dates');
+  const db = require('../src/db/schema');
+  // daysUntil wraps into next year: yesterday's month/day is ~364-365 days out.
+  const y = new Date(Date.UTC(2026, 5, 15)); // fixed reference: 2026-06-15
+  assert.strictEqual(dates.daysUntil(6, 15, y), 0);
+  assert.strictEqual(dates.daysUntil(6, 16, y), 1);
+  assert.ok(dates.daysUntil(6, 14, y) >= 363);
+  const id = dates.add(717171, { label: 'Birthday', month: 6, day: 18, year: 2000 });
+  assert.ok(dates.list(717171).some(d => d.label === 'Birthday'));
+  const up = dates.upcoming(7, 0, y);
+  const mine = up.find(d => d.chat_id === 717171);
+  assert.ok(mine && mine.inDays === 3 && mine.age === 26);
+  assert.throws(() => dates.add(717171, { label: 'bad', month: 13, day: 1 }), /month/);
+  assert.strictEqual(dates.remove(id), 1);
+});
+
 test('analytics.contactTimeline groups activity per day, newest first', () => {
   const analytics = require('../src/analytics');
   const db = require('../src/db/schema');

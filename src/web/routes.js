@@ -337,6 +337,22 @@ router.get('/contacts/:chatId/timeline', wrap((req, res) => {
   res.json(analytics.contactTimeline(Number(req.params.chatId), aid));
 }));
 
+// Important dates (birthdays, anniversaries…) per contact + upcoming feed.
+const dates = require('../dates');
+router.get('/dates/upcoming', wrap((req, res) => {
+  res.json(dates.upcoming(Number(req.query.days) || 30, Number(req.query.assistant_id) || 0));
+}));
+router.get('/contacts/:chatId/dates', wrap((req, res) => {
+  res.json(dates.list(Number(req.params.chatId), Number(req.query.assistant_id) || 0));
+}));
+router.post('/contacts/:chatId/dates', wrap((req, res) => {
+  const id = dates.add(Number(req.params.chatId), req.body, Number(req.query.assistant_id) || 0);
+  res.json({ ok: true, id });
+}));
+router.delete('/dates/:id', wrap((req, res) => {
+  res.json({ ok: dates.remove(Number(req.params.id)) > 0 });
+}));
+
 // Distinct tags across contacts, with counts.
 router.get('/contacts/tags', wrap((req, res) => {
   const aid = Number(req.query.assistant_id) || 0;

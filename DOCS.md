@@ -92,6 +92,7 @@ Add keys two ways: `.env`, or **Settings → API keys** (stored in DB, override 
 - **Offline message** — one-time notice sent when auto-reply is off.
 - **Reply policy** — probability %, quiet hours (silent), blacklist words, ignore forwarded, per-media toggles (photo/voice/sticker), minimum length.
 - **Per contact** — tone, rules, blocked topics, VIP priority, custom prompt, voice replies, delay multiplier.
+- **Contact CRM** — opening a contact shows interaction stats (volumes, response rate, cadence), a relationship-strength score (volume + recency + reciprocity), dominant topic chips, a per-day activity **Timeline**, and **Important dates** (birthdays/anniversaries with optional year for age). Upcoming dates within a week appear in the daily summary ("🎂 Birthday — Mia today! (turning 36)").
 - **Human behavior** (Settings → Generation → Human behavior) — makes replies read like a person texting, not an assistant. Two layers kept in lockstep:
   - **Text like a human (prompt)** — appends directives telling the model to use contractions, vary sentence length, keep punctuation casual, and never mention being an AI.
   - **Output imperfections (code)** — `subtle`/`natural` roughening applied after generation: occasionally drops a trailing period or lowercases a short casual line, relaxes spaced ellipses. Never touches links, questions, or exclamations.

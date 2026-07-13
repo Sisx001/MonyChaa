@@ -311,6 +311,19 @@ db.exec('CREATE INDEX IF NOT EXISTS idx_contacts_assistant ON contacts(assistant
   if (!cols.includes('recurrence')) db.exec("ALTER TABLE scheduled_messages ADD COLUMN recurrence TEXT DEFAULT 'none'");
 }
 
+// Important dates per contact (birthdays, anniversaries, renewals…).
+db.exec(`CREATE TABLE IF NOT EXISTS contact_dates (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  chat_id INTEGER NOT NULL,
+  assistant_id INTEGER DEFAULT 0,
+  label TEXT NOT NULL,
+  month INTEGER NOT NULL,
+  day INTEGER NOT NULL,
+  year INTEGER,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_contact_dates ON contact_dates(chat_id, assistant_id);`);
+
 // Session upgrade: human-readable device label, remember-me flag, explicit
 // revocation reason, and rolling idle tracking. Additive so old rows survive.
 {

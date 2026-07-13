@@ -221,7 +221,7 @@ function contactMoodProfile(chatId, assistantId = 0, limit = 40) {
 function dailySummaryText() {
   const s = stats();
   const newContacts = db.prepare("SELECT COUNT(*) c FROM contacts WHERE created_at >= date('now')").get().c;
-  return [
+  const lines = [
     '📊 Daily Summary',
     `Messages today: ${s.msgsToday}`,
     `Active chats: ${s.activeChats}`,
@@ -229,7 +229,16 @@ function dailySummaryText() {
     `Avg response: ${(s.avgResponseMs / 1000).toFixed(1)}s`,
     `Tokens: ${s.tokensToday.toLocaleString()} · Cost: $${s.costToday.toFixed(4)}`,
     s.errorsToday ? `⚠️ Errors: ${s.errorsToday}` : '✅ No errors',
-  ].join('\n');
+  ];
+  // Heads-up on important dates in the next week.
+  try {
+    const soon = require('./dates').upcoming(7);
+    for (const d of soon.slice(0, 5)) {
+      const who = d.name || d.username || d.chat_id;
+      lines.push(`🎂 ${d.label} — ${who} ${d.inDays === 0 ? 'today!' : `in ${d.inDays} day${d.inDays === 1 ? '' : 's'}`}${d.age ? ` (turning ${d.age})` : ''}`);
+    }
+  } catch { /* best-effort */ }
+  return lines.join('\n');
 }
 
 module.exports = { stats, dailySummaryText, moodBreakdown, contactMoodProfile, contactStats, contactTopics, relationshipStrength, contactTimeline };

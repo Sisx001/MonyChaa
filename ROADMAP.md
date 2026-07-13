@@ -27,7 +27,7 @@ Turn the contacts list into a lightweight CRM.
 - ✅ 2.2 **Dominant topics** — recurring, stopword-filtered keywords from a contact's history; shown as chips in the editor.
 - ✅ 2.3 **Relationship strength** — 0–100 (cool/warm/strong) from volume, recency and reciprocity; tile in the editor.
 - ✅ 2.4 **Contact timeline** — per-day activity digest (in/out counts + snippet, last 30 days) with a Timeline button in the editor.
-- ⬜ 2.5 **Important dates** — remember birthdays/anniversaries per contact, surface upcoming ones.
+- ✅ 2.5 **Important dates** — per-contact birthdays/anniversaries with age math; upcoming feed + daily-summary heads-up.
 - ⬜ 2.6 **Duplicate detector** — find likely-duplicate contacts to merge.
 
 ## Phase 3 — Analytics & Insights
