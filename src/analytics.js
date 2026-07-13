@@ -151,6 +151,26 @@ function contactTopics(chatId, assistantId = 0, top = 6, limit = 120) {
     .map(([word, count]) => ({ word, count }));
 }
 
+/** Compact activity timeline for a contact: one row per active day. */
+function contactTimeline(chatId, assistantId = 0, days = 30) {
+  const rows = db.prepare(`SELECT
+      date(created_at) day,
+      COUNT(*) total,
+      SUM(CASE WHEN direction = 'incoming' THEN 1 ELSE 0 END) incoming,
+      SUM(CASE WHEN direction = 'outgoing' THEN 1 ELSE 0 END) outgoing,
+      MIN(CASE WHEN direction = 'incoming' THEN content END) snippet
+    FROM messages_log
+    WHERE chat_id = ? AND assistant_id = ? AND created_at >= date('now', ?)
+    GROUP BY date(created_at) ORDER BY day DESC`).all(chatId, assistantId, `-${days} days`);
+  return rows.map(r => ({
+    day: r.day,
+    total: r.total,
+    incoming: r.incoming || 0,
+    outgoing: r.outgoing || 0,
+    snippet: r.snippet ? String(r.snippet).slice(0, 90) : '',
+  }));
+}
+
 /** Relationship strength 0–100 from volume, recency and reciprocity. */
 function relationshipStrength(chatId, assistantId = 0) {
   const s = contactStats(chatId, assistantId);
@@ -212,4 +232,4 @@ function dailySummaryText() {
   ].join('\n');
 }
 
-module.exports = { stats, dailySummaryText, moodBreakdown, contactMoodProfile, contactStats, contactTopics, relationshipStrength };
+module.exports = { stats, dailySummaryText, moodBreakdown, contactMoodProfile, contactStats, contactTopics, relationshipStrength, contactTimeline };

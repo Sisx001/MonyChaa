@@ -331,6 +331,12 @@ router.get('/contacts/:chatId/stats', wrap((req, res) => {
   res.json({ ...stats, mood, topics, relationship });
 }));
 
+// Per-contact activity timeline (one row per active day, last 30 days).
+router.get('/contacts/:chatId/timeline', wrap((req, res) => {
+  const aid = Number(req.query.assistant_id) || 0;
+  res.json(analytics.contactTimeline(Number(req.params.chatId), aid));
+}));
+
 // Distinct tags across contacts, with counts.
 router.get('/contacts/tags', wrap((req, res) => {
   const aid = Number(req.query.assistant_id) || 0;

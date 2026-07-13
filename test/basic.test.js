@@ -206,6 +206,22 @@ test('analytics.contactStats computes volumes, response rate and cadence', () =>
   db.prepare('DELETE FROM messages_log WHERE chat_id = 313131').run();
 });
 
+test('analytics.contactTimeline groups activity per day, newest first', () => {
+  const analytics = require('../src/analytics');
+  const db = require('../src/db/schema');
+  const ins = db.prepare("INSERT INTO messages_log (chat_id, assistant_id, direction, content, created_at) VALUES (?, 0, ?, ?, datetime('now', ?))");
+  ins.run(616161, 'incoming', 'hey about the project', '-0 days');
+  ins.run(616161, 'outgoing', 'on it', '-0 days');
+  ins.run(616161, 'incoming', 'any update', '-2 days');
+  const tl = analytics.contactTimeline(616161, 0);
+  assert.strictEqual(tl.length, 2);
+  assert.ok(tl[0].day > tl[1].day); // newest first
+  assert.strictEqual(tl[0].incoming, 1);
+  assert.strictEqual(tl[0].outgoing, 1);
+  assert.match(tl[1].snippet, /any update/);
+  db.prepare('DELETE FROM messages_log WHERE chat_id = 616161').run();
+});
+
 test('analytics.relationshipStrength rewards volume, recency and balance', () => {
   const analytics = require('../src/analytics');
   const db = require('../src/db/schema');

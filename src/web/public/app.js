@@ -841,6 +841,22 @@ $('#contact-history').addEventListener('click', async () => {
     : '<p class="hint">No conversation history.</p>';
   view.scrollTop = view.scrollHeight;
 });
+$('#contact-timeline').addEventListener('click', async () => {
+  if (!editingChatId) return;
+  const rows = await api(`/contacts/${editingChatId}/timeline?assistant_id=${contactAssistant}`);
+  const view = $('#c-history-view');
+  view.style.display = 'block';
+  view.innerHTML = rows.length ? rows.map(d => `
+    <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 4px;border-bottom:1px solid rgba(127,127,127,.15)">
+      <div style="min-width:86px;font-weight:600">${esc(d.day)}</div>
+      <div style="flex:1">
+        <div><span class="badge badge-blue">${d.incoming} in</span> <span class="badge badge-green">${d.outgoing} out</span></div>
+        ${d.snippet ? `<div class="hint" style="margin-top:4px">"${esc(d.snippet)}${d.snippet.length >= 90 ? '…' : ''}"</div>` : ''}
+      </div>
+    </div>`).join('')
+    : '<p class="hint">No activity in the last 30 days.</p>';
+  view.scrollTop = 0;
+});
 $('#contact-import-btn').addEventListener('click', () => $('#contact-import-file').click());
 $('#contact-import-file').addEventListener('change', async e => {
   const file = e.target.files[0]; if (!file) return;
