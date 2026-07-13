@@ -151,6 +151,37 @@ function contactTopics(chatId, assistantId = 0, top = 6, limit = 120) {
     .map(([word, count]) => ({ word, count }));
 }
 
+/** Likely-duplicate contact pairs: same username or same normalized name. */
+function duplicateContacts(assistantId = 0) {
+  const rows = db.prepare('SELECT chat_id, name, username FROM contacts WHERE assistant_id = ?').all(assistantId);
+  const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9À-ɏЀ-ӿ]/g, '');
+  const byKey = new Map();
+  const pairs = [];
+  for (const c of rows) {
+    const keys = [];
+    if (c.username) keys.push('u:' + norm(c.username));
+    if (c.name && norm(c.name).length >= 3) keys.push('n:' + norm(c.name));
+    for (const k of keys) {
+      if (byKey.has(k)) {
+        const other = byKey.get(k);
+        if (other.chat_id !== c.chat_id) {
+          pairs.push({ reason: k.startsWith('u:') ? 'same username' : 'same name', a: other, b: c });
+        }
+      } else {
+        byKey.set(k, c);
+      }
+    }
+  }
+  // De-dupe pairs that matched on both name and username.
+  const seen = new Set();
+  return pairs.filter(p => {
+    const id = [p.a.chat_id, p.b.chat_id].sort().join('-');
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
 /** Compact activity timeline for a contact: one row per active day. */
 function contactTimeline(chatId, assistantId = 0, days = 30) {
   const rows = db.prepare(`SELECT
@@ -241,4 +272,4 @@ function dailySummaryText() {
   return lines.join('\n');
 }
 
-module.exports = { stats, dailySummaryText, moodBreakdown, contactMoodProfile, contactStats, contactTopics, relationshipStrength, contactTimeline };
+module.exports = { stats, dailySummaryText, moodBreakdown, contactMoodProfile, contactStats, contactTopics, relationshipStrength, contactTimeline, duplicateContacts };

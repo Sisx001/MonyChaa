@@ -337,6 +337,11 @@ router.get('/contacts/:chatId/timeline', wrap((req, res) => {
   res.json(analytics.contactTimeline(Number(req.params.chatId), aid));
 }));
 
+// Likely-duplicate contacts (same username / normalized name).
+router.get('/contacts/duplicates', wrap((req, res) => {
+  res.json(analytics.duplicateContacts(Number(req.query.assistant_id) || 0));
+}));
+
 // Important dates (birthdays, anniversaries…) per contact + upcoming feed.
 const dates = require('../dates');
 router.get('/dates/upcoming', wrap((req, res) => {

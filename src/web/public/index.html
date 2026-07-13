@@ -398,9 +398,11 @@
             <a class="btn" id="contact-csv" href="/api/contacts.csv" download><svg class="ic ic-sm"><use href="#i-download"/></svg> CSV</a>
             <button class="btn" id="contact-import-btn"><svg class="ic ic-sm"><use href="#i-upload"/></svg> Import Telegram export</button>
             <input type="file" id="contact-import-file" accept=".json" hidden>
+            <button class="btn" id="contact-dupes"><svg class="ic ic-sm"><use href="#i-users"/></svg> Find duplicates</button>
             <button class="btn btn-primary" id="contact-add"><svg class="ic ic-sm"><use href="#i-plus"/></svg> Add contact</button>
           </div>
         </div>
+        <div id="dupes-result" style="display:none;margin-bottom:10px"></div>
         <div id="tag-filters" class="preset-row" style="margin-bottom:10px"></div>
         <table class="table" id="contacts-table">
           <thead><tr><th>Name</th><th>@username</th><th>chat_id</th><th>Relationship</th><th>Tone</th><th>Auto-reply</th><th>Priority</th><th></th></tr></thead>

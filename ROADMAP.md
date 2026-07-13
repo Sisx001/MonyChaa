@@ -28,7 +28,9 @@ Turn the contacts list into a lightweight CRM.
 - ✅ 2.3 **Relationship strength** — 0–100 (cool/warm/strong) from volume, recency and reciprocity; tile in the editor.
 - ✅ 2.4 **Contact timeline** — per-day activity digest (in/out counts + snippet, last 30 days) with a Timeline button in the editor.
 - ✅ 2.5 **Important dates** — per-contact birthdays/anniversaries with age math; upcoming feed + daily-summary heads-up.
-- ⬜ 2.6 **Duplicate detector** — find likely-duplicate contacts to merge.
+- ✅ 2.6 **Duplicate detector** — same-username / same-normalized-name pairs, one click from the Contacts toolbar.
+
+**Phase 2 complete** ✅ — the Contacts tab is a lightweight CRM: stats, topics, strength, timeline, dates, dupes.
 
 ## Phase 3 — Analytics & Insights
 Deeper, actionable numbers on the Dashboard/Monitoring.

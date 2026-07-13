@@ -206,6 +206,22 @@ test('analytics.contactStats computes volumes, response rate and cadence', () =>
   db.prepare('DELETE FROM messages_log WHERE chat_id = 313131').run();
 });
 
+test('analytics.duplicateContacts pairs same-username and same-name contacts', () => {
+  const analytics = require('../src/analytics');
+  const db = require('../src/db/schema');
+  const ins = db.prepare('INSERT INTO contacts (chat_id, assistant_id, name, username) VALUES (?, 0, ?, ?)');
+  ins.run(818181, 'Jane Roe', 'janeroe');
+  ins.run(818182, 'jane  ROE', null);        // same normalized name
+  ins.run(818183, 'Someone Else', 'JaneRoe'); // same username, different case
+  ins.run(818184, 'Solo Person', 'solo');
+  const pairs = analytics.duplicateContacts(0)
+    .filter(p => String(p.a.chat_id).startsWith('8181') && String(p.b.chat_id).startsWith('8181'));
+  assert.strictEqual(pairs.length, 2);
+  assert.ok(pairs.some(p => p.reason === 'same name'));
+  assert.ok(pairs.some(p => p.reason === 'same username'));
+  db.prepare('DELETE FROM contacts WHERE chat_id IN (818181, 818182, 818183, 818184)').run();
+});
+
 test('dates: add/list/remove, year-wrap daysUntil, upcoming window', () => {
   const dates = require('../src/dates');
   const db = require('../src/db/schema');

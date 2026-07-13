@@ -885,6 +885,24 @@ $('#contact-timeline').addEventListener('click', async () => {
     : '<p class="hint">No activity in the last 30 days.</p>';
   view.scrollTop = 0;
 });
+$('#contact-dupes').addEventListener('click', async () => {
+  const box = $('#dupes-result');
+  box.style.display = '';
+  box.innerHTML = '<p class="hint">Scanning…</p>';
+  const pairs = await api(`/contacts/duplicates?assistant_id=${contactAssistant || 0}`).catch(() => []);
+  const who = c => `<b>${esc(c.name || '—')}</b>${c.username ? ' @' + esc(c.username) : ''} <span class="hint">#${c.chat_id}</span>`;
+  box.innerHTML = pairs.length ? `
+    <div class="card" style="padding:12px 16px">
+      <div class="row-between"><h3 style="margin:0">Possible duplicates (${pairs.length})</h3>
+        <button class="btn btn-sm" id="dupes-close"><svg class="ic ic-sm"><use href="#i-x"/></svg></button></div>
+      ${pairs.map(p => `<div style="padding:6px 0;border-bottom:1px solid rgba(127,127,127,.15)">
+        ${who(p.a)} &nbsp;↔&nbsp; ${who(p.b)} <span class="badge badge-yellow">${esc(p.reason)}</span>
+      </div>`).join('')}
+      <p class="hint" style="margin-top:8px">Review each pair — keep the richer profile and delete the other from its editor.</p>
+    </div>`
+    : '<div class="card" style="padding:12px 16px"><span class="badge badge-green">No duplicates found</span></div>';
+  $('#dupes-close')?.addEventListener('click', () => { box.style.display = 'none'; });
+});
 $('#contact-import-btn').addEventListener('click', () => $('#contact-import-file').click());
 $('#contact-import-file').addEventListener('change', async e => {
   const file = e.target.files[0]; if (!file) return;
