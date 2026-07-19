@@ -205,6 +205,24 @@ function responseTimes(days = 30) {
   return { total: ms.length, p50: pct(50), p90: pct(90), p99: pct(99), histogram };
 }
 
+/** Language distribution across recent incoming messages. */
+function languageBreakdown(limit = 300) {
+  const { detect } = require('./bot/language');
+  const rows = db.prepare(
+    "SELECT content FROM messages_log WHERE direction = 'incoming' AND content IS NOT NULL AND content != '' ORDER BY id DESC LIMIT ?"
+  ).all(limit);
+  const counts = {};
+  for (const r of rows) {
+    const { code, name } = detect(r.content);
+    if (code === 'und') continue;
+    counts[code] = counts[code] ? { ...counts[code], count: counts[code].count + 1 } : { name, count: 1 };
+  }
+  const languages = Object.entries(counts)
+    .map(([code, v]) => ({ code, name: v.name, count: v.count }))
+    .sort((a, b) => b.count - a.count);
+  return { total: rows.length, languages };
+}
+
 /** Likely-duplicate contact pairs: same username or same normalized name. */
 function duplicateContacts(assistantId = 0) {
   const rows = db.prepare('SELECT chat_id, name, username FROM contacts WHERE assistant_id = ?').all(assistantId);
@@ -326,4 +344,4 @@ function dailySummaryText() {
   return lines.join('\n');
 }
 
-module.exports = { stats, dailySummaryText, moodBreakdown, contactMoodProfile, contactStats, contactTopics, relationshipStrength, contactTimeline, duplicateContacts, intentBreakdown, activityHeatmap, responseTimes };
+module.exports = { stats, dailySummaryText, moodBreakdown, contactMoodProfile, contactStats, contactTopics, relationshipStrength, contactTimeline, duplicateContacts, intentBreakdown, activityHeatmap, responseTimes, languageBreakdown };

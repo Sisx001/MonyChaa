@@ -206,6 +206,17 @@ test('analytics.contactStats computes volumes, response rate and cadence', () =>
   db.prepare('DELETE FROM messages_log WHERE chat_id = 313131').run();
 });
 
+test('analytics.languageBreakdown counts languages of incoming messages', () => {
+  const analytics = require('../src/analytics');
+  const db = require('../src/db/schema');
+  const ins = db.prepare("INSERT INTO messages_log (chat_id, assistant_id, direction, content) VALUES (242424, 0, 'incoming', ?)");
+  ['hello how are you today', 'bonjour merci beaucoup pour tout', 'привет как дела'].forEach(t => ins.run(t));
+  const d = analytics.languageBreakdown();
+  const codes = d.languages.map(l => l.code);
+  assert.ok(codes.includes('en') && codes.includes('fr') && codes.includes('ru'));
+  db.prepare('DELETE FROM messages_log WHERE chat_id = 242424').run();
+});
+
 test('analytics.responseTimes computes percentiles and histogram buckets', () => {
   const analytics = require('../src/analytics');
   const db = require('../src/db/schema');

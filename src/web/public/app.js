@@ -1599,6 +1599,15 @@ async function loadResponseTimes() {
   }).join('');
 }
 
+async function loadLanguageMix() {
+  const d = await api('/analytics/languages');
+  const known = d.languages.reduce((a, l) => a + l.count, 0);
+  $('#lang-note').textContent = known ? `${d.languages.length} language${d.languages.length === 1 ? '' : 's'}` : '';
+  $('#lang-chips').innerHTML = d.languages.length
+    ? d.languages.map(l => `<span class="badge badge-blue" title="${l.count} messages">${esc(l.name)} · ${Math.round((l.count / known) * 100)}%</span>`).join('')
+    : '<span class="hint">No language signal yet.</span>';
+}
+
 async function loadSystem() {
   const { metrics: m, diagnostics: diag } = await api('/system');
   const fmtUp = s => s > 86400 ? `${Math.floor(s/86400)}d ${Math.floor(s%86400/3600)}h` : s > 3600 ? `${Math.floor(s/3600)}h ${Math.floor(s%3600/60)}m` : `${Math.floor(s/60)}m`;
@@ -1640,6 +1649,7 @@ async function loadSystem() {
   loadIntentMix().catch(() => {});
   loadHeatmap().catch(() => {});
   loadResponseTimes().catch(() => {});
+  loadLanguageMix().catch(() => {});
 
   clearTimeout(sysTimer);
   sysTimer = setTimeout(() => { if ($('#tab-system').classList.contains('active')) loadSystem().catch(() => {}); }, 4000);

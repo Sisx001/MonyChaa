@@ -47,6 +47,11 @@ router.get('/analytics/response-times', wrap((req, res) => {
   res.json(analytics.responseTimes());
 }));
 
+// Language distribution of incoming messages.
+router.get('/analytics/languages', wrap((req, res) => {
+  res.json(analytics.languageBreakdown());
+}));
+
 // ---------- Settings ----------
 router.get('/settings', wrap((req, res) => res.json(config.allSettings())));
 
