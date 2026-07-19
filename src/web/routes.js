@@ -32,6 +32,11 @@ router.get('/analytics/mood', wrap((req, res) => {
   res.json(analytics.moodBreakdown());
 }));
 
+// Intent distribution across recent incoming messages.
+router.get('/analytics/intents', wrap((req, res) => {
+  res.json(analytics.intentBreakdown());
+}));
+
 // ---------- Settings ----------
 router.get('/settings', wrap((req, res) => res.json(config.allSettings())));
 

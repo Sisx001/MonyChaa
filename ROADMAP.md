@@ -35,7 +35,7 @@ Turn the contacts list into a lightweight CRM.
 ## Phase 3 — Analytics & Insights
 Deeper, actionable numbers on the Dashboard/Monitoring.
 
-- ⬜ 3.1 **Intent breakdown** — distribution of intents across recent messages.
+- ✅ 3.1 **Intent breakdown** — intent distribution bars beside the mood mix in Monitoring.
 - ⬜ 3.2 **Activity heatmap** — busiest weekday×hour grid.
 - ⬜ 3.3 **Response-time distribution** — p50/p90/p99 buckets.
 - ⬜ 3.4 **Language distribution** — which languages people write in.

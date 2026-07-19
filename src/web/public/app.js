@@ -1539,6 +1539,32 @@ async function loadMoodMix() {
   }).join('');
 }
 
+const INTENT_META = {
+  question:  { label: 'Questions',  color: '#3b82f6' },
+  request:   { label: 'Requests',   color: '#8b5cf6' },
+  complaint: { label: 'Complaints', color: '#ef4444' },
+  feedback:  { label: 'Feedback',   color: '#22c55e' },
+  greeting:  { label: 'Greetings',  color: '#14b8a6' },
+  smalltalk: { label: 'Small talk', color: '#f59e0b' },
+  statement: { label: 'Statements', color: '#8b95a5' },
+};
+async function loadIntentMix() {
+  const d = await api('/analytics/intents');
+  $('#intent-total').textContent = d.total ? `${d.total} messages` : 'no messages yet';
+  if (!d.total) { $('#intent-bars').innerHTML = '<p class="hint">No incoming messages to analyze yet.</p>'; return; }
+  $('#intent-bars').innerHTML = Object.entries(INTENT_META).map(([k, meta]) => {
+    const n = d.counts[k] || 0;
+    const pct = Math.round((n / d.total) * 100);
+    return `<div style="display:flex;align-items:center;gap:10px;margin:6px 0">
+      <span style="width:80px;font-size:.85em;color:var(--text-dim)">${meta.label}</span>
+      <div style="flex:1;height:10px;border-radius:6px;background:rgba(127,127,127,.15);overflow:hidden">
+        <div style="width:${pct}%;height:100%;background:${meta.color};border-radius:6px;transition:width .4s"></div>
+      </div>
+      <span style="width:64px;text-align:right;font-size:.82em;color:var(--text-dim)">${n} · ${pct}%</span>
+    </div>`;
+  }).join('');
+}
+
 async function loadSystem() {
   const { metrics: m, diagnostics: diag } = await api('/system');
   const fmtUp = s => s > 86400 ? `${Math.floor(s/86400)}d ${Math.floor(s%86400/3600)}h` : s > 3600 ? `${Math.floor(s/3600)}h ${Math.floor(s%3600/60)}m` : `${Math.floor(s/60)}m`;
@@ -1577,6 +1603,7 @@ async function loadSystem() {
   ].map(([k, v]) => `<div class="kv"><span class="kv-k">${esc(k)}</span><span class="kv-v">${esc(v)}</span></div>`).join('');
 
   loadMoodMix().catch(() => {});
+  loadIntentMix().catch(() => {});
 
   clearTimeout(sysTimer);
   sysTimer = setTimeout(() => { if ($('#tab-system').classList.contains('active')) loadSystem().catch(() => {}); }, 4000);

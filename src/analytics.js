@@ -151,6 +151,20 @@ function contactTopics(chatId, assistantId = 0, top = 6, limit = 120) {
     .map(([word, count]) => ({ word, count }));
 }
 
+/** Distribution of intents across recent incoming messages. */
+function intentBreakdown(limit = 300) {
+  const { classify } = require('./bot/intent');
+  const rows = db.prepare(
+    "SELECT content FROM messages_log WHERE direction = 'incoming' AND content IS NOT NULL AND content != '' ORDER BY id DESC LIMIT ?"
+  ).all(limit);
+  const counts = { greeting: 0, smalltalk: 0, complaint: 0, feedback: 0, question: 0, request: 0, statement: 0 };
+  for (const r of rows) {
+    const { intent } = classify(r.content);
+    if (counts[intent] !== undefined) counts[intent]++;
+  }
+  return { total: rows.length, counts };
+}
+
 /** Likely-duplicate contact pairs: same username or same normalized name. */
 function duplicateContacts(assistantId = 0) {
   const rows = db.prepare('SELECT chat_id, name, username FROM contacts WHERE assistant_id = ?').all(assistantId);
@@ -272,4 +286,4 @@ function dailySummaryText() {
   return lines.join('\n');
 }
 
-module.exports = { stats, dailySummaryText, moodBreakdown, contactMoodProfile, contactStats, contactTopics, relationshipStrength, contactTimeline, duplicateContacts };
+module.exports = { stats, dailySummaryText, moodBreakdown, contactMoodProfile, contactStats, contactTopics, relationshipStrength, contactTimeline, duplicateContacts, intentBreakdown };

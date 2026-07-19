@@ -206,6 +206,17 @@ test('analytics.contactStats computes volumes, response rate and cadence', () =>
   db.prepare('DELETE FROM messages_log WHERE chat_id = 313131').run();
 });
 
+test('analytics.intentBreakdown counts intents across recent messages', () => {
+  const analytics = require('../src/analytics');
+  const db = require('../src/db/schema');
+  const ins = db.prepare("INSERT INTO messages_log (chat_id, assistant_id, direction, content) VALUES (?, 0, 'incoming', ?)");
+  ['what time do you open?', 'please send me the invoice', 'this is broken and terrible', 'thanks so much!'].forEach(t => ins.run(919191, t));
+  const b = analytics.intentBreakdown();
+  assert.ok(b.total >= 4);
+  assert.ok(b.counts.question >= 1 && b.counts.request >= 1 && b.counts.complaint >= 1 && b.counts.feedback >= 1);
+  db.prepare('DELETE FROM messages_log WHERE chat_id = 919191').run();
+});
+
 test('analytics.duplicateContacts pairs same-username and same-name contacts', () => {
   const analytics = require('../src/analytics');
   const db = require('../src/db/schema');
