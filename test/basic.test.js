@@ -206,6 +206,20 @@ test('analytics.contactStats computes volumes, response rate and cadence', () =>
   db.prepare('DELETE FROM messages_log WHERE chat_id = 313131').run();
 });
 
+test('analytics.activityHeatmap buckets messages into a 7x24 grid', () => {
+  const analytics = require('../src/analytics');
+  const db = require('../src/db/schema');
+  const ins = db.prepare("INSERT INTO messages_log (chat_id, assistant_id, direction, content, created_at) VALUES (212121, 0, 'incoming', 'x', ?)");
+  ins.run('2026-07-13 14:05:00'); // Monday 14h
+  ins.run('2026-07-13 14:30:00');
+  const h = analytics.activityHeatmap(3650); // wide window so fixed dates count
+  assert.strictEqual(h.grid.length, 7);
+  assert.strictEqual(h.grid[0].length, 24);
+  assert.ok(h.grid[1][14] >= 2); // Monday=1, hour 14
+  assert.ok(h.max >= 2);
+  db.prepare('DELETE FROM messages_log WHERE chat_id = 212121').run();
+});
+
 test('analytics.intentBreakdown counts intents across recent messages', () => {
   const analytics = require('../src/analytics');
   const db = require('../src/db/schema');

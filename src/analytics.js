@@ -165,6 +165,24 @@ function intentBreakdown(limit = 300) {
   return { total: rows.length, counts };
 }
 
+/** Weekday×hour activity grid over the last 30 days (0=Sunday). */
+function activityHeatmap(days = 30) {
+  const rows = db.prepare(`SELECT
+      CAST(strftime('%w', created_at) AS INTEGER) dow,
+      CAST(strftime('%H', created_at) AS INTEGER) hour,
+      COUNT(*) n
+    FROM messages_log WHERE created_at >= date('now', ?)
+    GROUP BY dow, hour`).all(`-${days} days`);
+  // Dense 7×24 grid, plus the max for color scaling.
+  const grid = Array.from({ length: 7 }, () => new Array(24).fill(0));
+  let max = 0;
+  for (const r of rows) {
+    grid[r.dow][r.hour] = r.n;
+    if (r.n > max) max = r.n;
+  }
+  return { grid, max, days };
+}
+
 /** Likely-duplicate contact pairs: same username or same normalized name. */
 function duplicateContacts(assistantId = 0) {
   const rows = db.prepare('SELECT chat_id, name, username FROM contacts WHERE assistant_id = ?').all(assistantId);
@@ -286,4 +304,4 @@ function dailySummaryText() {
   return lines.join('\n');
 }
 
-module.exports = { stats, dailySummaryText, moodBreakdown, contactMoodProfile, contactStats, contactTopics, relationshipStrength, contactTimeline, duplicateContacts, intentBreakdown };
+module.exports = { stats, dailySummaryText, moodBreakdown, contactMoodProfile, contactStats, contactTopics, relationshipStrength, contactTimeline, duplicateContacts, intentBreakdown, activityHeatmap };

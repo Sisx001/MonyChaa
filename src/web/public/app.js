@@ -1565,6 +1565,21 @@ async function loadIntentMix() {
   }).join('');
 }
 
+async function loadHeatmap() {
+  const { grid, max } = await api('/analytics/heatmap');
+  const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  $('#heatmap-note').textContent = max ? `peak ${max}/hr` : 'no activity yet';
+  if (!max) { $('#heatmap-grid').innerHTML = '<p class="hint">No messages in the last 30 days.</p>'; return; }
+  const cell = (n) => {
+    const a = n ? 0.15 + 0.85 * (n / max) : 0;
+    return `<td title="${n} messages" style="width:22px;height:18px;border-radius:4px;background:${n ? `rgba(124,108,255,${a.toFixed(2)})` : 'rgba(127,127,127,.08)'}"></td>`;
+  };
+  $('#heatmap-grid').innerHTML = `<table style="border-spacing:3px;border-collapse:separate">
+    <tr><td></td>${Array.from({ length: 24 }, (_, h) => `<td class="hint" style="font-size:.7em;text-align:center">${h % 3 === 0 ? h : ''}</td>`).join('')}</tr>
+    ${grid.map((row, d) => `<tr><td class="hint" style="font-size:.75em;padding-right:6px">${DAYS[d]}</td>${row.map(cell).join('')}</tr>`).join('')}
+  </table>`;
+}
+
 async function loadSystem() {
   const { metrics: m, diagnostics: diag } = await api('/system');
   const fmtUp = s => s > 86400 ? `${Math.floor(s/86400)}d ${Math.floor(s%86400/3600)}h` : s > 3600 ? `${Math.floor(s/3600)}h ${Math.floor(s%3600/60)}m` : `${Math.floor(s/60)}m`;
@@ -1604,6 +1619,7 @@ async function loadSystem() {
 
   loadMoodMix().catch(() => {});
   loadIntentMix().catch(() => {});
+  loadHeatmap().catch(() => {});
 
   clearTimeout(sysTimer);
   sysTimer = setTimeout(() => { if ($('#tab-system').classList.contains('active')) loadSystem().catch(() => {}); }, 4000);

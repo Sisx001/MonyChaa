@@ -37,6 +37,11 @@ router.get('/analytics/intents', wrap((req, res) => {
   res.json(analytics.intentBreakdown());
 }));
 
+// Weekday×hour activity heatmap.
+router.get('/analytics/heatmap', wrap((req, res) => {
+  res.json(analytics.activityHeatmap());
+}));
+
 // ---------- Settings ----------
 router.get('/settings', wrap((req, res) => res.json(config.allSettings())));
 
