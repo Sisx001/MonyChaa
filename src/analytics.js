@@ -183,6 +183,28 @@ function activityHeatmap(days = 30) {
   return { grid, max, days };
 }
 
+/** Response-time percentiles + histogram over the last `days`. */
+function responseTimes(days = 30) {
+  const rows = db.prepare(`SELECT response_time_ms ms FROM messages_log
+    WHERE direction = 'outgoing' AND response_time_ms > 0 AND created_at >= date('now', ?)
+    ORDER BY response_time_ms`).all(`-${days} days`);
+  const ms = rows.map(r => r.ms);
+  const pct = p => ms.length ? ms[Math.min(ms.length - 1, Math.floor((p / 100) * ms.length))] : 0;
+  const BUCKETS = [
+    { label: '< 5s', max: 5000 },
+    { label: '5–15s', max: 15000 },
+    { label: '15–60s', max: 60000 },
+    { label: '1–5m', max: 300000 },
+    { label: '> 5m', max: Infinity },
+  ];
+  const histogram = BUCKETS.map(b => ({ label: b.label, count: 0 }));
+  for (const v of ms) {
+    const i = BUCKETS.findIndex(b => v < b.max);
+    histogram[i === -1 ? BUCKETS.length - 1 : i].count++;
+  }
+  return { total: ms.length, p50: pct(50), p90: pct(90), p99: pct(99), histogram };
+}
+
 /** Likely-duplicate contact pairs: same username or same normalized name. */
 function duplicateContacts(assistantId = 0) {
   const rows = db.prepare('SELECT chat_id, name, username FROM contacts WHERE assistant_id = ?').all(assistantId);
@@ -304,4 +326,4 @@ function dailySummaryText() {
   return lines.join('\n');
 }
 
-module.exports = { stats, dailySummaryText, moodBreakdown, contactMoodProfile, contactStats, contactTopics, relationshipStrength, contactTimeline, duplicateContacts, intentBreakdown, activityHeatmap };
+module.exports = { stats, dailySummaryText, moodBreakdown, contactMoodProfile, contactStats, contactTopics, relationshipStrength, contactTimeline, duplicateContacts, intentBreakdown, activityHeatmap, responseTimes };

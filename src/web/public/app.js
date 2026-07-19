@@ -1580,6 +1580,25 @@ async function loadHeatmap() {
   </table>`;
 }
 
+async function loadResponseTimes() {
+  const d = await api('/analytics/response-times');
+  const fmt = ms => ms >= 60000 ? (ms / 60000).toFixed(1) + 'm' : (ms / 1000).toFixed(1) + 's';
+  $('#rt-percentiles').textContent = d.total
+    ? `p50 ${fmt(d.p50)} · p90 ${fmt(d.p90)} · p99 ${fmt(d.p99)}` : 'no replies yet';
+  if (!d.total) { $('#rt-bars').innerHTML = '<p class="hint">No outgoing replies in the last 30 days.</p>'; return; }
+  const max = Math.max(...d.histogram.map(b => b.count), 1);
+  $('#rt-bars').innerHTML = d.histogram.map(b => {
+    const pct = Math.round((b.count / d.total) * 100);
+    return `<div style="display:flex;align-items:center;gap:10px;margin:6px 0">
+      <span style="width:60px;font-size:.85em;color:var(--text-dim)">${b.label}</span>
+      <div style="flex:1;height:10px;border-radius:6px;background:rgba(127,127,127,.15);overflow:hidden">
+        <div style="width:${Math.round((b.count / max) * 100)}%;height:100%;background:#7c6cff;border-radius:6px;transition:width .4s"></div>
+      </div>
+      <span style="width:64px;text-align:right;font-size:.82em;color:var(--text-dim)">${b.count} · ${pct}%</span>
+    </div>`;
+  }).join('');
+}
+
 async function loadSystem() {
   const { metrics: m, diagnostics: diag } = await api('/system');
   const fmtUp = s => s > 86400 ? `${Math.floor(s/86400)}d ${Math.floor(s%86400/3600)}h` : s > 3600 ? `${Math.floor(s/3600)}h ${Math.floor(s%3600/60)}m` : `${Math.floor(s/60)}m`;
@@ -1620,6 +1639,7 @@ async function loadSystem() {
   loadMoodMix().catch(() => {});
   loadIntentMix().catch(() => {});
   loadHeatmap().catch(() => {});
+  loadResponseTimes().catch(() => {});
 
   clearTimeout(sysTimer);
   sysTimer = setTimeout(() => { if ($('#tab-system').classList.contains('active')) loadSystem().catch(() => {}); }, 4000);

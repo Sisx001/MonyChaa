@@ -206,6 +206,21 @@ test('analytics.contactStats computes volumes, response rate and cadence', () =>
   db.prepare('DELETE FROM messages_log WHERE chat_id = 313131').run();
 });
 
+test('analytics.responseTimes computes percentiles and histogram buckets', () => {
+  const analytics = require('../src/analytics');
+  const db = require('../src/db/schema');
+  const ins = db.prepare("INSERT INTO messages_log (chat_id, assistant_id, direction, content, response_time_ms) VALUES (232323, 0, 'outgoing', 'x', ?)");
+  [2000, 3000, 10000, 30000, 400000].forEach(ms => ins.run(ms));
+  const d = analytics.responseTimes();
+  assert.ok(d.total >= 5);
+  assert.ok(d.p50 <= d.p90 && d.p90 <= d.p99);
+  const byLabel = Object.fromEntries(d.histogram.map(b => [b.label, b.count]));
+  assert.ok(byLabel['< 5s'] >= 2);
+  assert.ok(byLabel['5–15s'] >= 1);
+  assert.ok(byLabel['> 5m'] >= 1);
+  db.prepare('DELETE FROM messages_log WHERE chat_id = 232323').run();
+});
+
 test('analytics.activityHeatmap buckets messages into a 7x24 grid', () => {
   const analytics = require('../src/analytics');
   const db = require('../src/db/schema');

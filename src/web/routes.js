@@ -42,6 +42,11 @@ router.get('/analytics/heatmap', wrap((req, res) => {
   res.json(analytics.activityHeatmap());
 }));
 
+// Response-time percentiles + histogram.
+router.get('/analytics/response-times', wrap((req, res) => {
+  res.json(analytics.responseTimes());
+}));
+
 // ---------- Settings ----------
 router.get('/settings', wrap((req, res) => res.json(config.allSettings())));
 
